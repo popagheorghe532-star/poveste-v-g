@@ -786,7 +786,7 @@
   <main id="app">
     <div class="brand" aria-label="V plus G">
       <span class="brand-mark">V</span>
-      <span>V + G</span>
+      <span></span>
     </div>
 
     <section class="screen intro-screen is-active" data-screen="initial" aria-label="Introducere">
@@ -892,1142 +892,261 @@
   </main>
 
   <canvas id="confetti-canvas" aria-hidden="true"></canvas>
-  <audio id="bg-music" src="muzica.mp3" preload="metadata" loop playsinline></audio>
+  <audio id="bg-music" src="muzica.mp3" preload="metadata" loop></audio>
   <noscript>Activează JavaScript pentru a vedea povestea.</noscript>
 
   <script>
-    (() => {
-      "use strict";
-
-      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const motionDuration = (value) => (prefersReducedMotion ? 0.01 : value);
-      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-      const query = (selector, scope = document) => scope.querySelector(selector);
-      const queryAll = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
-
-      gsap.config({ force3D: "auto", nullTargetWarn: false });
-      gsap.ticker.lagSmoothing(800, 24);
-
-      const dom = {
-        screens: queryAll("[data-screen]"),
-        introCanvas: query("#initial-canvas"),
-        introStatus: query("#intro-status"),
-        enterGallery: query("#enter-gallery"),
-        carouselScene: query("#carousel-scene"),
-        carouselRing: query("#carousel-ring"),
-        cards: queryAll(".memory-card"),
-        previousSlide: query("#previous-slide"),
-        nextSlide: query("#next-slide"),
-        slideCounter: query("#slide-counter"),
-        copyNumber: query("#copy-number"),
-        typewriter: query("#typewriter"),
-        galleryCaption: query("#gallery-caption"),
-        toMessage: query("#to-message"),
-        messageWords: query("#message-words"),
-        proposalActions: query("#proposal-actions"),
-        yesButton: query("#yes-button"),
-        replayButton: query("#replay-button"),
-        music: query("#bg-music"),
-        confettiCanvas: query("#confetti-canvas")
-      };
-
-      function bindPress(element, handler) {
-        let lastTouch = 0;
-
-        element.addEventListener("touchstart", (event) => {
-          lastTouch = Date.now();
-          handler(event);
-        }, { passive: true });
-
-        element.addEventListener("click", (event) => {
-          if (Date.now() - lastTouch < 650) {
-            return;
-          }
-          handler(event);
-        });
-      }
-
-      function addHoverMotion(element) {
-        if (prefersReducedMotion || !window.matchMedia("(hover: hover)").matches) {
-          return;
-        }
-
-        element.addEventListener("mouseenter", () => {
-          if (!element.disabled) {
-            gsap.to(element, { scale: 1.045, duration: 0.22, ease: "power2.out", overwrite: true });
-          }
-        });
-
-        element.addEventListener("mouseleave", () => {
-          gsap.to(element, { scale: 1, duration: 0.28, ease: "power2.out", overwrite: true });
-        });
-      }
-
-      class AudioController {
-        constructor(audio) {
-          this.audio = audio;
-          this.started = false;
-          this.audio.volume = 0.34;
-        }
-
-        start() {
-          if (this.started) {
-            return;
-          }
-
-          this.started = true;
-          this.audio.play().catch(() => {
-            this.started = false;
-          });
-        }
-      }
-
-      class IntroCanvas {
-        constructor(canvas, callbacks) {
-          this.canvas = canvas;
-          this.context = canvas.getContext("2d");
-          this.onChallengeStart = callbacks.onChallengeStart;
-          this.onChallengeProgress = callbacks.onChallengeProgress;
-          this.onComplete = callbacks.onComplete;
-          this.model = { progress: 0, pulse: 0 };
-          this.frameRequested = false;
-          this.timeline = null;
-          this.pulseTween = null;
-          this.width = 0;
-          this.height = 0;
-          this.pixelRatio = 1;
-          this.challenge = {
-            active: false,
-            isDrawing: false,
-            strokeIndex: 0,
-            checkpointIndex: 1,
-            strokes: [],
-            paths: [],
-            currentPath: []
-          };
-          this.resize = this.resize.bind(this);
-          this.handlePointerDown = this.handlePointerDown.bind(this);
-          this.handlePointerMove = this.handlePointerMove.bind(this);
-          this.handlePointerUp = this.handlePointerUp.bind(this);
-
-          window.addEventListener("resize", this.resize, { passive: true });
-          this.canvas.addEventListener("pointerdown", this.handlePointerDown);
-          this.canvas.addEventListener("pointermove", this.handlePointerMove);
-          this.canvas.addEventListener("pointerup", this.handlePointerUp);
-          this.canvas.addEventListener("pointercancel", this.handlePointerUp);
-          this.resize();
-        }
-
-        resize() {
-          const bounds = this.canvas.getBoundingClientRect();
-          this.width = Math.max(1, bounds.width);
-          this.height = Math.max(1, bounds.height);
-          this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-          this.canvas.width = Math.round(this.width * this.pixelRatio);
-          this.canvas.height = Math.round(this.height * this.pixelRatio);
-          this.context.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
-          if (this.challenge.active) {
-            this.challenge.strokes = this.createDrawingStrokes();
-            this.challenge.paths = [];
-            this.challenge.currentPath = [];
-            this.challenge.strokeIndex = 0;
-            this.challenge.checkpointIndex = 1;
-          }
-          this.render();
-        }
-
-        scheduleRender() {
-          if (this.frameRequested) {
-            return;
-          }
-
-          this.frameRequested = true;
-          requestAnimationFrame(() => {
-            this.frameRequested = false;
-            this.render();
-          });
-        }
-
-        play() {
-          if (this.timeline) {
-            this.timeline.kill();
-          }
-
-          this.model.progress = 1;
-          this.stopChallenge();
-          this.startChallenge();
-        }
-
-        stop() {
-          if (this.timeline) {
-            this.timeline.kill();
-          }
-          this.stopChallenge();
-        }
-
-        createDrawingStrokes() {
-          const scale = Math.min(this.width / 560, this.height / 270);
-          const centerX = this.width / 2;
-          const centerY = this.height / 2 + 3 * scale;
-
-          return [
-            {
-              label: "litera V",
-              color: "#ffb0c9",
-              points: [
-                { x: centerX - 190 * scale, y: centerY - 72 * scale },
-                { x: centerX - 139 * scale, y: centerY + 80 * scale },
-                { x: centerX - 86 * scale, y: centerY - 72 * scale }
-              ]
-            },
-            {
-              label: "bara orizontală",
-              color: "#ffb0c9",
-              points: [
-                { x: centerX - 42 * scale, y: centerY + 2 * scale },
-                { x: centerX + 16 * scale, y: centerY + 2 * scale }
-              ]
-            },
-            {
-              label: "bara verticală",
-              color: "#ffb0c9",
-              points: [
-                { x: centerX - 13 * scale, y: centerY - 27 * scale },
-                { x: centerX - 13 * scale, y: centerY + 31 * scale }
-              ]
-            },
-            {
-              label: "litera G",
-              color: "#bda5ff",
-              points: [
-                { x: centerX + 160 * scale, y: centerY - 47 * scale },
-                { x: centerX + 61 * scale, y: centerY - 42 * scale },
-                { x: centerX + 42 * scale, y: centerY + 28 * scale },
-                { x: centerX + 112 * scale, y: centerY + 67 * scale },
-                { x: centerX + 179 * scale, y: centerY + 15 * scale },
-                { x: centerX + 127 * scale, y: centerY + 15 * scale }
-              ]
-            }
-          ];
-        }
-
-        startChallenge() {
-          this.challenge.active = true;
-          this.challenge.isDrawing = false;
-          this.challenge.strokeIndex = 0;
-          this.challenge.checkpointIndex = 1;
-          this.challenge.strokes = this.createDrawingStrokes();
-          this.challenge.paths = [];
-          this.challenge.currentPath = [];
-          this.model.pulse = 0;
-
-          if (this.pulseTween) {
-            this.pulseTween.kill();
-          }
-
-          this.pulseTween = gsap.to(this.model, {
-            pulse: 1,
-            duration: motionDuration(0.72),
-            repeat: -1,
-            yoyo: true,
-            ease: "sine.inOut",
-            onUpdate: () => this.scheduleRender()
-          });
-
-          this.onChallengeStart(this.challenge.strokes[0], this.challenge.strokes.length);
-          this.scheduleRender();
-        }
-
-        stopChallenge() {
-          this.challenge.active = false;
-          this.challenge.isDrawing = false;
-          this.challenge.paths = [];
-          this.challenge.currentPath = [];
-
-          if (this.pulseTween) {
-            this.pulseTween.kill();
-            this.pulseTween = null;
-          }
-        }
-
-        getCanvasPoint(event) {
-          const bounds = this.canvas.getBoundingClientRect();
-          return {
-            x: event.clientX - bounds.left,
-            y: event.clientY - bounds.top
-          };
-        }
-
-        isNearPoint(position, point) {
-          const radius = clamp(Math.min(this.width, this.height) * 0.075, 20, 34);
-          return Math.hypot(position.x - point.x, position.y - point.y) <= radius;
-        }
-
-        handlePointerDown(event) {
-          if (!this.challenge.active) {
-            return;
-          }
-
-          const currentStroke = this.challenge.strokes[this.challenge.strokeIndex];
-          const startPoint = currentStroke.points[0];
-          const position = this.getCanvasPoint(event);
-
-          if (!this.isNearPoint(position, startPoint)) {
-            return;
-          }
-
-          event.preventDefault();
-          this.challenge.isDrawing = true;
-          this.challenge.currentPath = [startPoint, position];
-          this.challenge.checkpointIndex = 1;
-          this.canvas.setPointerCapture?.(event.pointerId);
-          this.scheduleRender();
-        }
-
-        handlePointerMove(event) {
-          if (!this.challenge.active || !this.challenge.isDrawing) {
-            return;
-          }
-
-          event.preventDefault();
-          const position = this.getCanvasPoint(event);
-          const previous = this.challenge.currentPath[this.challenge.currentPath.length - 1];
-
-          if (Math.hypot(position.x - previous.x, position.y - previous.y) > 2) {
-            this.challenge.currentPath.push(position);
-            const currentStroke = this.challenge.strokes[this.challenge.strokeIndex];
-            const nextCheckpoint = currentStroke.points[this.challenge.checkpointIndex];
-
-            if (nextCheckpoint && this.isNearPoint(position, nextCheckpoint)) {
-              this.challenge.checkpointIndex += 1;
-            }
-
-            this.scheduleRender();
-          }
-        }
-
-        handlePointerUp(event) {
-          if (!this.challenge.active || !this.challenge.isDrawing) {
-            return;
-          }
-
-          const position = this.getCanvasPoint(event);
-          const currentStroke = this.challenge.strokes[this.challenge.strokeIndex];
-          const target = currentStroke.points[currentStroke.points.length - 1];
-          this.challenge.isDrawing = false;
-          this.canvas.releasePointerCapture?.(event.pointerId);
-
-          if (
-            target &&
-            this.challenge.checkpointIndex === currentStroke.points.length - 1 &&
-            this.isNearPoint(position, target)
-          ) {
-            this.challenge.checkpointIndex += 1;
-          }
-
-          if (
-            !target ||
-            this.challenge.checkpointIndex < currentStroke.points.length ||
-            !this.isNearPoint(position, target)
-          ) {
-            this.challenge.currentPath = [];
-            this.scheduleRender();
-            return;
-          }
-
-          this.challenge.currentPath.push(target);
-          this.challenge.paths.push(this.challenge.currentPath);
-          this.challenge.currentPath = [];
-          this.challenge.strokeIndex += 1;
-
-          if (this.challenge.strokeIndex >= this.challenge.strokes.length) {
-            this.challenge.active = false;
-            if (this.pulseTween) {
-              this.pulseTween.kill();
-              this.pulseTween = null;
-            }
-            this.onComplete();
-          } else {
-            this.onChallengeProgress(
-              this.challenge.strokes[this.challenge.strokeIndex],
-              this.challenge.strokeIndex + 1,
-              this.challenge.strokes.length
-            );
-          }
-
-          this.scheduleRender();
-        }
-
-        strokeFreehand(points, color, width) {
-          if (points.length < 2) {
-            return;
-          }
-
-          const context = this.context;
-          context.beginPath();
-          context.moveTo(points[0].x, points[0].y);
-          points.slice(1).forEach((point) => context.lineTo(point.x, point.y));
-          context.strokeStyle = color;
-          context.lineWidth = width;
-          context.stroke();
-        }
-
-        renderChallenge() {
-          const context = this.context;
-          const pointRadius = clamp(Math.min(this.width, this.height) * 0.025, 6, 10);
-          const lineWidth = clamp(Math.min(this.width, this.height) * 0.012, 3, 5);
-          const activeStroke = this.challenge.strokes[this.challenge.strokeIndex];
-
-          context.save();
-          context.lineCap = "round";
-          context.lineJoin = "round";
-          context.shadowColor = "rgba(149, 233, 206, 0.78)";
-          context.shadowBlur = 12;
-
-          this.challenge.strokes.forEach((stroke, index) => {
-            if (index < this.challenge.paths.length) {
-              return;
-            }
-
-            context.save();
-            context.setLineDash(index === this.challenge.strokeIndex ? [5, 7] : [3, 9]);
-            context.globalAlpha = index === this.challenge.strokeIndex ? 0.58 : 0.18;
-            this.strokeFreehand(stroke.points, stroke.color, Math.max(1.3, lineWidth * 0.52));
-            context.restore();
-          });
-
-          this.challenge.paths.forEach((path) => this.strokeFreehand(path, "#95e9ce", lineWidth));
-          this.strokeFreehand(this.challenge.currentPath, "#ffb0c9", lineWidth);
-
-          if (activeStroke) {
-            const start = activeStroke.points[0];
-            const end = activeStroke.points[activeStroke.points.length - 1];
-            const pulse = 1 + this.model.pulse * 0.45;
-
-            [start, end].forEach((point, index) => {
-              context.beginPath();
-              context.arc(point.x, point.y, pointRadius * pulse, 0, Math.PI * 2);
-              context.fillStyle = index === 0 ? "#95e9ce" : "#ff9fbc";
-              context.fill();
-              context.lineWidth = 1.5;
-              context.strokeStyle = "rgba(255, 255, 255, 0.95)";
-              context.stroke();
-            });
-          }
-
-          context.restore();
-        }
-
-        makeArc(centerX, centerY, radius, start, end, steps) {
-          const points = [];
-          for (let step = 0; step <= steps; step += 1) {
-            const progress = step / steps;
-            const angle = start + (end - start) * progress;
-            points.push({
-              x: centerX + Math.cos(angle) * radius,
-              y: centerY + Math.sin(angle) * radius
-            });
-          }
-          return points;
-        }
-
-        strokePartial(points, progress, color, width) {
-          if (progress <= 0 || points.length < 2) {
-            return;
-          }
-
-          const context = this.context;
-          const lengths = [];
-          let totalLength = 0;
-
-          for (let index = 1; index < points.length; index += 1) {
-            const length = Math.hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y);
-            lengths.push(length);
-            totalLength += length;
-          }
-
-          let remaining = totalLength * clamp(progress, 0, 1);
-          context.beginPath();
-          context.moveTo(points[0].x, points[0].y);
-
-          for (let index = 1; index < points.length && remaining > 0; index += 1) {
-            const current = points[index];
-            const previous = points[index - 1];
-            const length = lengths[index - 1];
-
-            if (remaining >= length) {
-              context.lineTo(current.x, current.y);
-              remaining -= length;
-            } else {
-              const ratio = remaining / length;
-              context.lineTo(
-                previous.x + (current.x - previous.x) * ratio,
-                previous.y + (current.y - previous.y) * ratio
-              );
-              remaining = 0;
-            }
-          }
-
-          context.strokeStyle = color;
-          context.lineWidth = width;
-          context.stroke();
-        }
-
-        render() {
-          const context = this.context;
-          const width = this.width;
-          const height = this.height;
-          const scale = Math.min(width / 560, height / 270);
-          const centerX = width / 2;
-          const centerY = height / 2 + 3 * scale;
-          const progress = this.model.progress;
-          const userDrawingExists = this.challenge.active || this.challenge.paths.length > 0;
-          const glyphProgress = userDrawingExists ? 0 : clamp(progress / 0.72, 0, 1);
-          const linkProgress = userDrawingExists ? 0 : clamp((progress - 0.54) / 0.46, 0, 1);
-          const strokeWidth = clamp(3.2 * scale, 2.1, 4.6);
-
-          context.clearRect(0, 0, width, height);
-          context.lineCap = "round";
-          context.lineJoin = "round";
-          context.shadowColor = "rgba(255, 153, 186, 0.75)";
-          context.shadowBlur = 14 * scale;
-
-          const v = [
-            { x: centerX - 190 * scale, y: centerY - 72 * scale },
-            { x: centerX - 139 * scale, y: centerY + 80 * scale },
-            { x: centerX - 86 * scale, y: centerY - 72 * scale }
-          ];
-          const plusHorizontal = [
-            { x: centerX - 42 * scale, y: centerY + 2 * scale },
-            { x: centerX + 16 * scale, y: centerY + 2 * scale }
-          ];
-          const plusVertical = [
-            { x: centerX - 13 * scale, y: centerY - 27 * scale },
-            { x: centerX - 13 * scale, y: centerY + 31 * scale }
-          ];
-          const gArc = this.makeArc(centerX + 111 * scale, centerY, 72 * scale, -0.42, Math.PI * 1.72, 30);
-          const gCross = [
-            { x: centerX + 119 * scale, y: centerY + 4 * scale },
-            { x: centerX + 179 * scale, y: centerY + 4 * scale },
-            { x: centerX + 179 * scale, y: centerY + 48 * scale },
-            { x: centerX + 149 * scale, y: centerY + 51 * scale }
-          ];
-          const paths = [v, plusHorizontal, plusVertical, gArc, gCross];
-
-          paths.forEach((path, index) => {
-            const localProgress = clamp(glyphProgress * paths.length - index, 0, 1);
-            this.strokePartial(path, localProgress, index === 3 || index === 4 ? "#bda5ff" : "#ffb0c9", strokeWidth);
-          });
-
-          context.shadowColor = "rgba(149, 233, 206, 0.64)";
-          context.shadowBlur = 12 * scale;
-          const leftConnector = [
-            { x: centerX - 139 * scale, y: centerY + 80 * scale },
-            { x: centerX - 74 * scale, y: centerY + 103 * scale },
-            { x: centerX + 25 * scale, y: centerY + 96 * scale },
-            { x: centerX + 93 * scale, y: centerY + 66 * scale }
-          ];
-          const topConnector = [
-            { x: centerX - 86 * scale, y: centerY - 72 * scale },
-            { x: centerX - 43 * scale, y: centerY - 100 * scale },
-            { x: centerX + 55 * scale, y: centerY - 101 * scale },
-            { x: centerX + 111 * scale, y: centerY - 72 * scale }
-          ];
-
-          this.strokePartial(leftConnector, linkProgress, "#95e9ce", Math.max(1.4, strokeWidth * 0.43));
-          this.strokePartial(topConnector, clamp((linkProgress - 0.22) / 0.78, 0, 1), "#95e9ce", Math.max(1.4, strokeWidth * 0.43));
-
-          if (linkProgress > 0) {
-            const heartScale = 5.5 * scale * linkProgress;
-            const heartX = centerX + 26 * scale;
-            const heartY = centerY + 96 * scale;
-            context.fillStyle = "#ff9fbc";
-            context.beginPath();
-            context.moveTo(heartX, heartY + heartScale * 0.8);
-            context.bezierCurveTo(heartX - heartScale * 1.65, heartY - heartScale * 0.25, heartX - heartScale * 0.9, heartY - heartScale * 1.52, heartX, heartY - heartScale * 0.65);
-            context.bezierCurveTo(heartX + heartScale * 0.9, heartY - heartScale * 1.52, heartX + heartScale * 1.65, heartY - heartScale * 0.25, heartX, heartY + heartScale * 0.8);
-            context.fill();
-          }
-
-          if (this.challenge.active || this.challenge.paths.length) {
-            this.renderChallenge();
-          }
-
-          context.shadowBlur = 0;
-        }
-      }
-
-      class Typewriter {
-        constructor(element) {
-          this.element = element;
-          this.timeline = null;
-        }
-
-        set(text) {
-          const visibleText = this.element.textContent;
-
-          if (visibleText === text) {
-            return;
-          }
-
-          if (this.timeline) {
-            this.timeline.kill();
-          }
-
-          const state = { length: visibleText.length };
-          const renderText = (source) => {
-            this.element.textContent = source.slice(0, Math.round(state.length));
-          };
-
-          this.timeline = gsap.timeline();
-
-          if (visibleText.length) {
-            this.timeline.to(state, {
-              length: 0,
-              duration: motionDuration(Math.max(0.18, visibleText.length * 0.021)),
-              ease: "none",
-              onUpdate: () => renderText(visibleText)
-            });
-          }
-
-          this.timeline.call(() => {
-            state.length = 0;
-            this.element.textContent = "";
-          });
-
-          this.timeline.to(state, {
-            length: text.length,
-            duration: motionDuration(Math.max(0.46, text.length * 0.038)),
-            ease: "none",
-            onUpdate: () => renderText(text)
-          });
-        }
-
-        stop() {
-          if (this.timeline) {
-            this.timeline.kill();
-          }
-        }
-      }
-
-      class Carousel {
-        constructor(options) {
-          this.scene = options.scene;
-          this.ring = options.ring;
-          this.cards = options.cards;
-          this.counter = options.counter;
-          this.onChange = options.onChange;
-          this.index = 0;
-          this.angle = 360 / this.cards.length;
-          this.dragStartX = null;
-          this.isDragging = false;
-
-          this.bindDrag();
-          this.update(false);
-        }
-
-        bindDrag() {
-          this.scene.addEventListener("pointerdown", (event) => {
-            this.dragStartX = event.clientX;
-            this.isDragging = true;
-            this.scene.setPointerCapture?.(event.pointerId);
-          });
-
-          this.scene.addEventListener("pointerup", (event) => {
-            if (!this.isDragging || this.dragStartX === null) {
-              return;
-            }
-
-            const delta = event.clientX - this.dragStartX;
-            this.isDragging = false;
-            this.dragStartX = null;
-
-            if (Math.abs(delta) > 28) {
-              delta < 0 ? this.next() : this.previous();
-            }
-          });
-
-          this.scene.addEventListener("pointercancel", () => {
-            this.isDragging = false;
-            this.dragStartX = null;
-          });
-        }
-
-        next() {
-          this.goTo(this.index + 1);
-        }
-
-        previous() {
-          this.goTo(this.index - 1);
-        }
-
-        goTo(index, animate = true) {
-          this.index = (index + this.cards.length) % this.cards.length;
-          this.update(animate);
-        }
-
-        update(animate) {
-          gsap.set(this.ring, { rotationY: 0 });
-
-          this.cards.forEach((card, cardIndex) => {
-            let offset = cardIndex - this.index;
-
-            if (offset > this.cards.length / 2) {
-              offset -= this.cards.length;
-            }
-
-            if (offset < -this.cards.length / 2) {
-              offset += this.cards.length;
-            }
-
-            const distance = Math.abs(offset);
-            const isCurrent = offset === 0;
-            const isVisible = distance <= 1;
-            const animation = {
-              "--card-x": String(offset * 74) + "%",
-              "--card-z": isCurrent ? "0rem" : "-5rem",
-              "--card-tilt": String(offset * -17) + "deg",
-              "--card-scale": isCurrent ? "1" : "0.8",
-              opacity: isVisible ? (isCurrent ? 1 : 0.46) : 0,
-              duration: motionDuration(0.64),
-              ease: "power2.out",
-              force3D: true,
-              overwrite: "auto"
-            };
-
-            card.style.zIndex = String(10 - distance);
-            card.classList.toggle("is-current", isCurrent);
-            card.setAttribute("aria-hidden", String(!isCurrent));
-
-            if (animate) {
-              gsap.to(card, animation);
-            } else {
-              gsap.set(card, animation);
-            }
-          });
-
-          this.counter.textContent = String(this.index + 1).padStart(2, "0") + " / " + String(this.cards.length).padStart(2, "0");
-          this.onChange(this.index);
-        }
-      }
-
-      class WordReveal {
-        constructor(container, actions) {
-          this.container = container;
-          this.actions = actions;
-          this.timeline = null;
-        }
-
-        show(message) {
-          if (this.timeline) {
-            this.timeline.kill();
-          }
-
-          this.container.replaceChildren();
-          this.actions.style.opacity = "0";
-          this.actions.style.transform = "translateY(1rem)";
-
-          const fragment = document.createDocumentFragment();
-          const words = message.split(" ");
-
-          words.forEach((word) => {
-            const span = document.createElement("span");
-            span.className = "message-word";
-            span.textContent = word;
-            fragment.appendChild(span);
-          });
-
-          this.container.appendChild(fragment);
-          const wordElements = queryAll(".message-word", this.container);
-
-          this.timeline = gsap.timeline({ delay: motionDuration(0.32) });
-          this.timeline.to(wordElements, {
-            autoAlpha: 1,
-            y: 0,
-            duration: motionDuration(0.45),
-            ease: "power3.out",
-            stagger: motionDuration(0.1)
-          });
-          this.timeline.to(this.actions, {
-            autoAlpha: 1,
-            y: 0,
-            duration: motionDuration(0.52),
-            ease: "back.out(1.6)"
-          }, motionDuration(0.16));
-        }
-
-        reset() {
-          if (this.timeline) {
-            this.timeline.kill();
-          }
-          this.container.replaceChildren();
-          gsap.set(this.actions, { autoAlpha: 0, y: 16 });
-        }
-      }
-
-      class ConfettiField {
-        constructor(canvas) {
-          this.canvas = canvas;
-          this.context = canvas.getContext("2d");
-          this.particles = [];
-          this.running = false;
-          this.frame = 0;
-          this.width = 0;
-          this.height = 0;
-          this.pixelRatio = 1;
-          this.loop = this.loop.bind(this);
-          this.resize = this.resize.bind(this);
-          window.addEventListener("resize", this.resize, { passive: true });
-          this.resize();
-        }
-
-        resize() {
-          this.width = window.innerWidth;
-          this.height = window.innerHeight;
-          this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-          this.canvas.width = Math.round(this.width * this.pixelRatio);
-          this.canvas.height = Math.round(this.height * this.pixelRatio);
-          this.context.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
-        }
-
-        createParticle(initial) {
-          const colors = ["#ff9fbc", "#bda5ff", "#95e9ce", "#ffe49d", "#f7f5ff"];
-          return {
-            x: Math.random() * this.width,
-            y: initial ? -Math.random() * this.height : -24,
-            velocityX: (Math.random() - 0.5) * 1.9,
-            velocityY: 1.45 + Math.random() * 2.8,
-            gravity: 0.018 + Math.random() * 0.025,
-            rotation: Math.random() * Math.PI,
-            rotationSpeed: (Math.random() - 0.5) * 0.16,
-            width: 5 + Math.random() * 8,
-            height: 3 + Math.random() * 5,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            opacity: 0.65 + Math.random() * 0.35
-          };
-        }
-
-        start() {
-          this.stop();
-          const count = prefersReducedMotion ? 55 : 150;
-          this.particles = Array.from({ length: count }, () => this.createParticle(true));
-          this.running = true;
-          this.loop();
-        }
-
-        stop() {
-          this.running = false;
-          cancelAnimationFrame(this.frame);
-          this.context.clearRect(0, 0, this.width, this.height);
-        }
-
-        loop() {
-          if (!this.running) {
-            return;
-          }
-
-          const context = this.context;
-          context.clearRect(0, 0, this.width, this.height);
-
-          this.particles.forEach((particle, index) => {
-            particle.x += particle.velocityX;
-            particle.y += particle.velocityY;
-            particle.velocityY += particle.gravity;
-            particle.rotation += particle.rotationSpeed;
-
-            if (particle.y > this.height + 30 || particle.x < -40 || particle.x > this.width + 40) {
-              this.particles[index] = this.createParticle(false);
-              return;
-            }
-
-            context.save();
-            context.globalAlpha = particle.opacity;
-            context.fillStyle = particle.color;
-            context.translate(particle.x, particle.y);
-            context.rotate(particle.rotation);
-            context.fillRect(-particle.width / 2, -particle.height / 2, particle.width, particle.height);
-            context.restore();
-          });
-
-          this.frame = requestAnimationFrame(this.loop);
-        }
-      }
-
-      class StateMachine {
-        constructor(options) {
-          this.current = null;
-          this.busy = false;
-          this.transitions = options.transitions;
-          this.screens = options.screens;
-          this.onEnter = options.onEnter;
-          this.onExit = options.onExit;
-        }
-
-        canTransition(next) {
-          return this.current === null || this.transitions[this.current].includes(next);
-        }
-
-        async go(next) {
-          if (this.busy || this.current === next || !this.canTransition(next)) {
-            return;
-          }
-
-          const previous = this.current;
-          this.busy = true;
-          await this.onExit(previous, next);
-          await this.swapScreens(previous, next);
-          this.current = next;
-          await this.onEnter(next, previous);
-          this.busy = false;
-        }
-
-        swapScreens(previous, next) {
-          const previousScreen = previous ? this.screens.get(previous) : null;
-          const nextScreen = this.screens.get(next);
-
-          nextScreen.classList.add("is-active");
-          nextScreen.removeAttribute("inert");
-          nextScreen.setAttribute("aria-hidden", "false");
-          gsap.set(nextScreen, { autoAlpha: 0, y: 24 });
-
-          if (previousScreen) {
-            previousScreen.setAttribute("inert", "");
-            previousScreen.setAttribute("aria-hidden", "true");
-            previousScreen.style.pointerEvents = "none";
-          }
-
-          return new Promise((resolve) => {
-            const timeline = gsap.timeline({
-              onComplete: () => {
-                if (previousScreen) {
-                  previousScreen.classList.remove("is-active");
-                  previousScreen.style.pointerEvents = "";
-                  gsap.set(previousScreen, { clearProps: "all" });
-                }
-                gsap.set(nextScreen, { clearProps: "transform,opacity,visibility" });
-                resolve();
-              }
-            });
-
-            if (previousScreen) {
-              timeline.to(previousScreen, {
-                autoAlpha: 0,
-                y: -18,
-                duration: motionDuration(0.42),
-                ease: "power2.in"
-              });
-            }
-
-            timeline.to(nextScreen, {
-              autoAlpha: 1,
-              y: 0,
-              duration: motionDuration(0.7),
-              ease: "power3.out"
-            }, previousScreen ? "-=0.16" : 0);
-          });
-        }
-      }
-
-      const slides = [
-        {
-          title: "Un început care încă luminează.",
-          caption: "O privire, un zâmbet și o poveste care a început să ne aparțină :)",
-          number: "01 — 'Ai și o privire drăgălașă 😉'"
-        },
-        {
-          title: "Cele mai colorate zile, sunt cu tine.",
-          caption: "Cu tine, și lucrurile mici au devenit locuri în care vreau să rămân.",
-          number: "02 — Aș dori doar privirea ta 😊"
-        },
-        {
-          title: "Buzele și ochii care mă lasă fără de cuvinte...",
-          caption: "În fiecare moment spontan, găsesc încă un motiv să te aleg.",
-          number: "03 — Căci doar TU mă faci să zâmbesc sincer..."
-        },
-        {
-          title: "Cât nu aș merge, dar să merg cu tine...",
-          caption: "Nu locul contează cel mai mult, ci mâna ta în mâna mea.",
-          number: "04 — 'Ești drăguță... la felul tău de a fi'"
-        },
-        {
-          title: "Tu faci timpul să fugă neobservat.",
-          caption: "Ai transformat clipe obișnuite în amintiri pe care le port mereu.",
-          number: "05 — Cel mai frumos fel de a fi pe care l-am văzut în viață"
-        },
-        {
-          title: "Și acesta e doar începutul.",
-          caption: "Mai avem atât de multe pagini frumoase de scris, împreună.",
-          number: "06 — continuăm?"
-        }
+(() => {
+  "use strict";
+
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const motionDuration = (value) => (prefersReducedMotion ? 0.01 : value);
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+  const query = (selector, scope = document) => scope.querySelector(selector);
+  const queryAll = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
+
+  gsap.config({ force3D: "auto", nullTargetWarn: false });
+  gsap.ticker.lagSmoothing(800, 24);
+
+  const dom = {
+    screens: queryAll("[data-screen]"),
+    introCanvas: query("#initial-canvas"),
+    introStatus: query("#intro-status"),
+    enterGallery: query("#enter-gallery"),
+    carouselScene: query("#carousel-scene"),
+    carouselRing: query("#carousel-ring"),
+    cards: queryAll(".memory-card"),
+    previousSlide: query("#previous-slide"),
+    nextSlide: query("#next-slide"),
+    slideCounter: query("#slide-counter"),
+    copyNumber: query("#copy-number"),
+    typewriter: query("#typewriter"),
+    galleryCaption: query("#gallery-caption"),
+    toMessage: query("#to-message"),
+    messageWords: query("#message-words"),
+    proposalActions: query("#proposal-actions"),
+    yesButton: query("#yes-button"),
+    replayButton: query("#replay-button"),
+    music: query("#bg-music"),
+    confettiCanvas: query("#confetti-canvas")
+  };
+
+  class AudioController {
+    constructor(audio) {
+      this.audio = audio;
+      this.started = false;
+      this.audio.volume = 0.34;
+    }
+
+    start() {
+      if (this.started) return;
+      this.started = true;
+      this.audio.play().catch(e => {
+        this.started = false;
+        console.error("Audio block:", e);
+      });
+    }
+  }
+
+  const audioController = new AudioController(dom.music);
+  
+  // Această funcție ascultă orice atingere pe pagină pentru a porni muzica
+  const startMusic = () => {
+    audioController.start();
+    if (audioController.started) {
+      ["touchstart", "click", "keydown", "pointerdown"].forEach(e => {
+        document.removeEventListener(e, startMusic);
+      });
+    }
+  };
+  ["touchstart", "click", "keydown", "pointerdown"].forEach(e => {
+    document.addEventListener(e, startMusic, { passive: true });
+  });
+
+  function bindPress(element, handler) {
+    let lastTouch = 0;
+    element.addEventListener("touchstart", (event) => {
+      lastTouch = Date.now();
+      handler(event);
+    }, { passive: true });
+    element.addEventListener("click", (event) => {
+      if (Date.now() - lastTouch < 650) return;
+      handler(event);
+    });
+  }
+
+  function addHoverMotion(element) {
+    if (prefersReducedMotion || !window.matchMedia("(hover: hover)").matches) return;
+    element.addEventListener("mouseenter", () => {
+      if (!element.disabled) gsap.to(element, { scale: 1.045, duration: 0.22, ease: "power2.out", overwrite: true });
+    });
+    element.addEventListener("mouseleave", () => {
+      gsap.to(element, { scale: 1, duration: 0.28, ease: "power2.out", overwrite: true });
+    });
+  }
+
+  // --- RESTUL LOGICII ---
+  class IntroCanvas {
+    constructor(canvas, callbacks) {
+      this.canvas = canvas;
+      this.context = canvas.getContext("2d");
+      this.onChallengeStart = callbacks.onChallengeStart;
+      this.onChallengeProgress = callbacks.onChallengeProgress;
+      this.onComplete = callbacks.onComplete;
+      this.model = { progress: 0, pulse: 0 };
+      this.frameRequested = false;
+      this.timeline = null;
+      this.pulseTween = null;
+      this.width = 0; this.height = 0; this.pixelRatio = 1;
+      this.challenge = { active: false, isDrawing: false, strokeIndex: 0, checkpointIndex: 1, strokes: [], paths: [], currentPath: [] };
+      this.resize = this.resize.bind(this);
+      this.handlePointerDown = this.handlePointerDown.bind(this);
+      this.handlePointerMove = this.handlePointerMove.bind(this);
+      this.handlePointerUp = this.handlePointerUp.bind(this);
+      window.addEventListener("resize", this.resize, { passive: true });
+      this.canvas.addEventListener("pointerdown", this.handlePointerDown);
+      this.canvas.addEventListener("pointermove", this.handlePointerMove);
+      this.canvas.addEventListener("pointerup", this.handlePointerUp);
+      this.canvas.addEventListener("pointercancel", this.handlePointerUp);
+      this.resize();
+    }
+    resize() {
+      const bounds = this.canvas.getBoundingClientRect();
+      this.width = Math.max(1, bounds.width);
+      this.height = Math.max(1, bounds.height);
+      this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      this.canvas.width = Math.round(this.width * this.pixelRatio);
+      this.canvas.height = Math.round(this.height * this.pixelRatio);
+      this.context.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
+      this.render();
+    }
+    scheduleRender() {
+      if (this.frameRequested) return;
+      this.frameRequested = true;
+      requestAnimationFrame(() => { this.frameRequested = false; this.render(); });
+    }
+    play() { if (this.timeline) this.timeline.kill(); this.model.progress = 1; this.stopChallenge(); this.startChallenge(); }
+    stop() { if (this.timeline) this.timeline.kill(); this.stopChallenge(); }
+    createDrawingStrokes() {
+      const scale = Math.min(this.width / 560, this.height / 270);
+      const centerX = this.width / 2; const centerY = this.height / 2 + 3 * scale;
+      return [
+        { label: "litera V", color: "#ffb0c9", points: [{ x: centerX - 190 * scale, y: centerY - 72 * scale }, { x: centerX - 139 * scale, y: centerY + 80 * scale }, { x: centerX - 86 * scale, y: centerY - 72 * scale }] },
+        { label: "bara orizontală", color: "#ffb0c9", points: [{ x: centerX - 42 * scale, y: centerY + 2 * scale }, { x: centerX + 16 * scale, y: centerY + 2 * scale }] },
+        { label: "bara verticală", color: "#ffb0c9", points: [{ x: centerX - 13 * scale, y: centerY - 27 * scale }, { x: centerX - 13 * scale, y: centerY + 31 * scale }] },
+        { label: "litera G", color: "#bda5ff", points: [{ x: centerX + 160 * scale, y: centerY - 47 * scale }, { x: centerX + 61 * scale, y: centerY - 42 * scale }, { x: centerX + 42 * scale, y: centerY + 28 * scale }, { x: centerX + 112 * scale, y: centerY + 67 * scale }, { x: centerX + 179 * scale, y: centerY + 15 * scale }, { x: centerX + 127 * scale, y: centerY + 15 * scale }] }
       ];
+    }
+    startChallenge() {
+      this.challenge.active = true; this.challenge.isDrawing = false; this.challenge.strokeIndex = 0; this.challenge.checkpointIndex = 1; this.challenge.strokes = this.createDrawingStrokes(); this.challenge.paths = []; this.challenge.currentPath = [];
+      this.pulseTween = gsap.to(this.model, { pulse: 1, duration: motionDuration(0.72), repeat: -1, yoyo: true, ease: "sine.inOut", onUpdate: () => this.scheduleRender() });
+      this.onChallengeStart(this.challenge.strokes[0], this.challenge.strokes.length);
+      this.scheduleRender();
+    }
+    stopChallenge() { this.challenge.active = false; this.challenge.isDrawing = false; this.challenge.paths = []; this.challenge.currentPath = []; if (this.pulseTween) this.pulseTween.kill(); }
+    getCanvasPoint(event) { const bounds = this.canvas.getBoundingClientRect(); return { x: event.clientX - bounds.left, y: event.clientY - bounds.top }; }
+    isNearPoint(position, point) { const radius = clamp(Math.min(this.width, this.height) * 0.075, 20, 34); return Math.hypot(position.x - point.x, position.y - point.y) <= radius; }
+    handlePointerDown(event) { if (!this.challenge.active) return; const currentStroke = this.challenge.strokes[this.challenge.strokeIndex]; const startPoint = currentStroke.points[0]; const position = this.getCanvasPoint(event); if (!this.isNearPoint(position, startPoint)) return; event.preventDefault(); this.challenge.isDrawing = true; this.challenge.currentPath = [startPoint, position]; this.challenge.checkpointIndex = 1; this.canvas.setPointerCapture?.(event.pointerId); this.scheduleRender(); }
+    handlePointerMove(event) { if (!this.challenge.active || !this.challenge.isDrawing) return; event.preventDefault(); const position = this.getCanvasPoint(event); const previous = this.challenge.currentPath[this.challenge.currentPath.length - 1]; if (Math.hypot(position.x - previous.x, position.y - previous.y) > 2) { this.challenge.currentPath.push(position); const currentStroke = this.challenge.strokes[this.challenge.strokeIndex]; const nextCheckpoint = currentStroke.points[this.challenge.checkpointIndex]; if (nextCheckpoint && this.isNearPoint(position, nextCheckpoint)) this.challenge.checkpointIndex += 1; this.scheduleRender(); } }
+    handlePointerUp(event) { if (!this.challenge.active || !this.challenge.isDrawing) return; const position = this.getCanvasPoint(event); const currentStroke = this.challenge.strokes[this.challenge.strokeIndex]; const target = currentStroke.points[currentStroke.points.length - 1]; this.challenge.isDrawing = false; this.canvas.releasePointerCapture?.(event.pointerId); if (target && this.challenge.checkpointIndex === currentStroke.points.length - 1 && this.isNearPoint(position, target)) this.challenge.checkpointIndex += 1; if (!target || this.challenge.checkpointIndex < currentStroke.points.length || !this.isNearPoint(position, target)) { this.challenge.currentPath = []; this.scheduleRender(); return; } this.challenge.currentPath.push(target); this.challenge.paths.push(this.challenge.currentPath); this.challenge.currentPath = []; this.challenge.strokeIndex += 1; if (this.challenge.strokeIndex >= this.challenge.strokes.length) { this.challenge.active = false; if (this.pulseTween) this.pulseTween.kill(); this.onComplete(); } else { this.onChallengeProgress(this.challenge.strokes[this.challenge.strokeIndex], this.challenge.strokeIndex + 1, this.challenge.strokes.length); } this.scheduleRender(); }
+    strokeFreehand(points, color, width) { if (points.length < 2) return; const context = this.context; context.beginPath(); context.moveTo(points[0].x, points[0].y); points.slice(1).forEach((point) => context.lineTo(point.x, point.y)); context.strokeStyle = color; context.lineWidth = width; context.stroke(); }
+    renderChallenge() { const context = this.context; const pointRadius = clamp(Math.min(this.width, this.height) * 0.025, 6, 10); const lineWidth = clamp(Math.min(this.width, this.height) * 0.012, 3, 5); const activeStroke = this.challenge.strokes[this.challenge.strokeIndex]; context.save(); context.lineCap = "round"; context.lineJoin = "round"; context.shadowColor = "rgba(149, 233, 206, 0.78)"; context.shadowBlur = 12; this.challenge.strokes.forEach((stroke, index) => { if (index < this.challenge.paths.length) return; context.save(); context.setLineDash(index === this.challenge.strokeIndex ? [5, 7] : [3, 9]); context.globalAlpha = index === this.challenge.strokeIndex ? 0.58 : 0.18; this.strokeFreehand(stroke.points, stroke.color, Math.max(1.3, lineWidth * 0.52)); context.restore(); }); this.challenge.paths.forEach((path) => this.strokeFreehand(path, "#95e9ce", lineWidth)); this.strokeFreehand(this.challenge.currentPath, "#ffb0c9", lineWidth); if (activeStroke) { const start = activeStroke.points[0]; const end = activeStroke.points[activeStroke.points.length - 1]; const pulse = 1 + this.model.pulse * 0.45; [start, end].forEach((point, index) => { context.beginPath(); context.arc(point.x, point.y, pointRadius * pulse, 0, Math.PI * 2); context.fillStyle = index === 0 ? "#95e9ce" : "#ff9fbc"; context.fill(); context.lineWidth = 1.5; context.strokeStyle = "rgba(255, 255, 255, 0.95)"; context.stroke(); }); } context.restore(); }
+    makeArc(centerX, centerY, radius, start, end, steps) { const points = []; for (let step = 0; step <= steps; step += 1) { const progress = step / steps; const angle = start + (end - start) * progress; points.push({ x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius }); } return points; }
+    strokePartial(points, progress, color, width) { if (progress <= 0 || points.length < 2) return; const context = this.context; const lengths = []; let totalLength = 0; for (let index = 1; index < points.length; index += 1) { const length = Math.hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y); lengths.push(length); totalLength += length; } let remaining = totalLength * clamp(progress, 0, 1); context.beginPath(); context.moveTo(points[0].x, points[0].y); for (let index = 1; index < points.length && remaining > 0; index += 1) { const current = points[index]; const previous = points[index - 1]; const length = lengths[index - 1]; if (remaining >= length) { context.lineTo(current.x, current.y); remaining -= length; } else { const ratio = remaining / length; context.lineTo(previous.x + (current.x - previous.x) * ratio, previous.y + (current.y - previous.y) * ratio); remaining = 0; } } context.strokeStyle = color; context.lineWidth = width; context.stroke(); }
+    render() { const context = this.context; const width = this.width; const height = this.height; const scale = Math.min(width / 560, height / 270); const centerX = width / 2; const centerY = height / 2 + 3 * scale; const progress = this.model.progress; const userDrawingExists = this.challenge.active || this.challenge.paths.length > 0; const glyphProgress = userDrawingExists ? 0 : clamp(progress / 0.72, 0, 1); const linkProgress = userDrawingExists ? 0 : clamp((progress - 0.54) / 0.46, 0, 1); const strokeWidth = clamp(3.2 * scale, 2.1, 4.6); context.clearRect(0, 0, width, height); context.lineCap = "round"; context.lineJoin = "round"; context.shadowColor = "rgba(255, 153, 186, 0.75)"; context.shadowBlur = 14 * scale; const v = [{ x: centerX - 190 * scale, y: centerY - 72 * scale }, { x: centerX - 139 * scale, y: centerY + 80 * scale }, { x: centerX - 86 * scale, y: centerY - 72 * scale }]; const plusHorizontal = [{ x: centerX - 42 * scale, y: centerY + 2 * scale }, { x: centerX + 16 * scale, y: centerY + 2 * scale }]; const plusVertical = [{ x: centerX - 13 * scale, y: centerY - 27 * scale }, { x: centerX - 13 * scale, y: centerY + 31 * scale }]; const gArc = this.makeArc(centerX + 111 * scale, centerY, 72 * scale, -0.42, Math.PI * 1.72, 30); const gCross = [{ x: centerX + 119 * scale, y: centerY + 4 * scale }, { x: centerX + 179 * scale, y: centerY + 4 * scale }, { x: centerX + 179 * scale, y: centerY + 48 * scale }, { x: centerX + 149 * scale, y: centerY + 51 * scale }]; const paths = [v, plusHorizontal, plusVertical, gArc, gCross]; paths.forEach((path, index) => { const localProgress = clamp(glyphProgress * paths.length - index, 0, 1); this.strokePartial(path, localProgress, index === 3 || index === 4 ? "#bda5ff" : "#ffb0c9", strokeWidth); }); context.shadowColor = "rgba(149, 233, 206, 0.64)"; context.shadowBlur = 12 * scale; const leftConnector = [{ x: centerX - 139 * scale, y: centerY + 80 * scale }, { x: centerX - 74 * scale, y: centerY + 103 * scale }, { x: centerX + 25 * scale, y: centerY + 96 * scale }, { x: centerX + 93 * scale, y: centerY + 66 * scale }]; const topConnector = [{ x: centerX - 86 * scale, y: centerY - 72 * scale }, { x: centerX - 43 * scale, y: centerY - 100 * scale }, { x: centerX + 55 * scale, y: centerY - 101 * scale }, { x: centerX + 111 * scale, y: centerY - 72 * scale }]; this.strokePartial(leftConnector, linkProgress, "#95e9ce", Math.max(1.4, strokeWidth * 0.43)); this.strokePartial(topConnector, clamp((linkProgress - 0.22) / 0.78, 0, 1), "#95e9ce", Math.max(1.4, strokeWidth * 0.43)); if (linkProgress > 0) { const heartScale = 5.5 * scale * linkProgress; const heartX = centerX + 26 * scale; const heartY = centerY + 96 * scale; context.fillStyle = "#ff9fbc"; context.beginPath(); context.moveTo(heartX, heartY + heartScale * 0.8); context.bezierCurveTo(heartX - heartScale * 1.65, heartY - heartScale * 0.25, heartX - heartScale * 0.9, heartY - heartScale * 1.52, heartX, heartY - heartScale * 0.65); context.bezierCurveTo(heartX + heartScale * 0.9, heartY - heartScale * 1.52, heartX + heartScale * 1.65, heartY - heartScale * 0.25, heartX, heartY + heartScale * 0.8); context.fill(); } if (this.challenge.active || this.challenge.paths.length) this.renderChallenge(); context.shadowBlur = 0; }
+  }
 
-      const audioController = new AudioController(dom.music);
-      ["pointerdown", "touchstart", "keydown"].forEach((eventName) => {
-        document.addEventListener(eventName, () => audioController.start(), { once: true, passive: eventName !== "keydown" });
-      });
+  class Typewriter {
+    constructor(element) { this.element = element; this.timeline = null; }
+    set(text) { const visibleText = this.element.textContent; if (visibleText === text) return; if (this.timeline) this.timeline.kill(); const state = { length: visibleText.length }; const renderText = (source) => { this.element.textContent = source.slice(0, Math.round(state.length)); }; this.timeline = gsap.timeline(); if (visibleText.length) this.timeline.to(state, { length: 0, duration: motionDuration(Math.max(0.18, visibleText.length * 0.021)), ease: "none", onUpdate: () => renderText(visibleText) }); this.timeline.call(() => { state.length = 0; this.element.textContent = ""; }); this.timeline.to(state, { length: text.length, duration: motionDuration(Math.max(0.46, text.length * 0.038)), ease: "none", onUpdate: () => renderText(text) }); }
+    stop() { if (this.timeline) this.timeline.kill(); }
+  }
 
-      queryAll(".js-hover").forEach(addHoverMotion);
-      gsap.to(".type-cursor", {
-        autoAlpha: 0.22,
-        duration: motionDuration(0.52),
-        repeat: -1,
-        yoyo: true,
-        ease: "sine.inOut"
-      });
+  class Carousel {
+    constructor(options) { this.scene = options.scene; this.ring = options.ring; this.cards = options.cards; this.counter = options.counter; this.onChange = options.onChange; this.index = 0; this.angle = 360 / this.cards.length; this.dragStartX = null; this.isDragging = false; this.bindDrag(); this.update(false); }
+    bindDrag() { this.scene.addEventListener("pointerdown", (event) => { this.dragStartX = event.clientX; this.isDragging = true; this.scene.setPointerCapture?.(event.pointerId); }); this.scene.addEventListener("pointerup", (event) => { if (!this.isDragging || this.dragStartX === null) return; const delta = event.clientX - this.dragStartX; this.isDragging = false; this.dragStartX = null; if (Math.abs(delta) > 28) delta < 0 ? this.next() : this.previous(); }); this.scene.addEventListener("pointercancel", () => { this.isDragging = false; this.dragStartX = null; }); }
+    next() { this.goTo(this.index + 1); }
+    previous() { this.goTo(this.index - 1); }
+    goTo(index, animate = true) { this.index = (index + this.cards.length) % this.cards.length; this.update(animate); }
+    update(animate) { gsap.set(this.ring, { rotationY: 0 }); this.cards.forEach((card, cardIndex) => { let offset = cardIndex - this.index; if (offset > this.cards.length / 2) offset -= this.cards.length; if (offset < -this.cards.length / 2) offset += this.cards.length; const distance = Math.abs(offset); const isCurrent = offset === 0; const isVisible = distance <= 1; const animation = { "--card-x": String(offset * 74) + "%", "--card-z": isCurrent ? "0rem" : "-5rem", "--card-tilt": String(offset * -17) + "deg", "--card-scale": isCurrent ? "1" : "0.8", opacity: isVisible ? (isCurrent ? 1 : 0.46) : 0, duration: motionDuration(0.64), ease: "power2.out", force3D: true, overwrite: "auto" }; card.style.zIndex = String(10 - distance); card.classList.toggle("is-current", isCurrent); card.setAttribute("aria-hidden", String(!isCurrent)); if (animate) gsap.to(card, animation); else gsap.set(card, animation); }); this.counter.textContent = String(this.index + 1).padStart(2, "0") + " / " + String(this.cards.length).padStart(2, "0"); this.onChange(this.index); }
+  }
 
-      const typewriter = new Typewriter(dom.typewriter);
-      const wordReveal = new WordReveal(dom.messageWords, dom.proposalActions);
-      const confettiField = new ConfettiField(dom.confettiCanvas);
-      let confettiInterval = 0;
+  class WordReveal {
+    constructor(container, actions) { this.container = container; this.actions = actions; this.timeline = null; }
+    show(message) { if (this.timeline) this.timeline.kill(); this.container.replaceChildren(); this.actions.style.opacity = "0"; this.actions.style.transform = "translateY(1rem)"; const fragment = document.createDocumentFragment(); const words = message.split(" "); words.forEach((word) => { const span = document.createElement("span"); span.className = "message-word"; span.textContent = word; fragment.appendChild(span); }); this.container.appendChild(fragment); const wordElements = queryAll(".message-word", this.container); this.timeline = gsap.timeline({ delay: motionDuration(0.32) }); this.timeline.to(wordElements, { autoAlpha: 1, y: 0, duration: motionDuration(0.45), ease: "power3.out", stagger: motionDuration(0.1) }); this.timeline.to(this.actions, { autoAlpha: 1, y: 0, duration: motionDuration(0.52), ease: "back.out(1.6)" }, motionDuration(0.16)); }
+    reset() { if (this.timeline) this.timeline.kill(); this.container.replaceChildren(); gsap.set(this.actions, { autoAlpha: 0, y: 16 }); }
+  }
 
-      function burstConfetti() {
-        if (typeof window.confetti !== "function") {
-          return;
-        }
+  class ConfettiField {
+    constructor(canvas) { this.canvas = canvas; this.context = canvas.getContext("2d"); this.particles = []; this.running = false; this.frame = 0; this.width = 0; this.height = 0; this.pixelRatio = 1; this.loop = this.loop.bind(this); this.resize = this.resize.bind(this); window.addEventListener("resize", this.resize, { passive: true }); this.resize(); }
+    resize() { this.width = window.innerWidth; this.height = window.innerHeight; this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2); this.canvas.width = Math.round(this.width * this.pixelRatio); this.canvas.height = Math.round(this.height * this.pixelRatio); this.context.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0); }
+    createParticle(initial) { const colors = ["#ff9fbc", "#bda5ff", "#95e9ce", "#ffe49d", "#f7f5ff"]; return { x: Math.random() * this.width, y: initial ? -Math.random() * this.height : -24, velocityX: (Math.random() - 0.5) * 1.9, velocityY: 1.45 + Math.random() * 2.8, gravity: 0.018 + Math.random() * 0.025, rotation: Math.random() * Math.PI, rotationSpeed: (Math.random() - 0.5) * 0.16, width: 5 + Math.random() * 8, height: 3 + Math.random() * 5, color: colors[Math.floor(Math.random() * colors.length)], opacity: 0.65 + Math.random() * 0.35 }; }
+    start() { this.stop(); const count = prefersReducedMotion ? 55 : 150; this.particles = Array.from({ length: count }, () => this.createParticle(true)); this.running = true; this.loop(); }
+    stop() { this.running = false; cancelAnimationFrame(this.frame); this.context.clearRect(0, 0, this.width, this.height); }
+    loop() { if (!this.running) return; const context = this.context; context.clearRect(0, 0, this.width, this.height); this.particles.forEach((particle, index) => { particle.x += particle.velocityX; particle.y += particle.velocityY; particle.velocityY += particle.gravity; particle.rotation += particle.rotationSpeed; if (particle.y > this.height + 30 || particle.x < -40 || particle.x > this.width + 40) this.particles[index] = this.createParticle(false); context.save(); context.globalAlpha = particle.opacity; context.fillStyle = particle.color; context.translate(particle.x, particle.y); context.rotate(particle.rotation); context.fillRect(-particle.width / 2, -particle.height / 2, particle.width, particle.height); context.restore(); }); this.frame = requestAnimationFrame(this.loop); }
+  }
 
-        window.confetti({
-          particleCount: prefersReducedMotion ? 20 : 56,
-          spread: 72,
-          startVelocity: 33,
-          origin: { y: 0.62 },
-          colors: ["#ff9fbc", "#bda5ff", "#95e9ce", "#ffe49d", "#f7f5ff"],
-          disableForReducedMotion: true
-        });
-      }
+  class StateMachine {
+    constructor(options) { this.current = null; this.busy = false; this.transitions = options.transitions; this.screens = options.screens; this.onEnter = options.onEnter; this.onExit = options.onExit; }
+    canTransition(next) { return this.current === null || this.transitions[this.current].includes(next); }
+    async go(next) { if (this.busy || this.current === next || !this.canTransition(next)) return; const previous = this.current; this.busy = true; await this.onExit(previous, next); await this.swapScreens(previous, next); this.current = next; await this.onEnter(next, previous); this.busy = false; }
+    swapScreens(previous, next) { const previousScreen = previous ? this.screens.get(previous) : null; const nextScreen = this.screens.get(next); nextScreen.classList.add("is-active"); nextScreen.removeAttribute("inert"); nextScreen.setAttribute("aria-hidden", "false"); gsap.set(nextScreen, { autoAlpha: 0, y: 24 }); if (previousScreen) { previousScreen.setAttribute("inert", ""); previousScreen.setAttribute("aria-hidden", "true"); previousScreen.style.pointerEvents = "none"; } return new Promise((resolve) => { const timeline = gsap.timeline({ onComplete: () => { if (previousScreen) { previousScreen.classList.remove("is-active"); previousScreen.style.pointerEvents = ""; gsap.set(previousScreen, { clearProps: "all" }); } gsap.set(nextScreen, { clearProps: "transform,opacity,visibility" }); resolve(); } }); if (previousScreen) timeline.to(previousScreen, { autoAlpha: 0, y: -18, duration: motionDuration(0.42), ease: "power2.in" }); timeline.to(nextScreen, { autoAlpha: 1, y: 0, duration: motionDuration(0.7), ease: "power3.out" }, previousScreen ? "-=0.16" : 0); }); }
+  }
 
-      function startCelebration() {
-        clearInterval(confettiInterval);
-        confettiField.start();
-        burstConfetti();
-        confettiInterval = window.setInterval(burstConfetti, prefersReducedMotion ? 3200 : 1900);
-      }
+  const slides = [
+    { title: "Un început care încă luminează.", caption: "O privire, un zâmbet și o poveste care a început să ne aparțină :)", number: "01 — 'Ai și o privire drăgălașă 😉'" },
+    { title: "Cele mai colorate zile, sunt cu tine.", caption: "Cu tine, și lucrurile mici au devenit locuri în care vreau să rămân.", number: "02 — Aș dori doar privirea ta 😊" },
+    { title: "Buzele și ochii care mă lasă fără de cuvinte...", caption: "În fiecare moment spontan, găsesc încă un motiv să te aleg.", number: "03 — Căci doar TU mă faci să zâmbesc sincer..." },
+    { title: "Cât nu aș merge, dar să merg cu tine...", caption: "Nu locul contează cel mai mult, ci mâna ta în mâna mea.", number: "04 — 'Ești drăguță... la felul tău de a fi'" },
+    { title: "Tu faci timpul să fugă neobservat.", caption: "Ai transformat clipe obișnuite în amintiri pe care le port mereu.", number: "05 — Cel mai frumos fel de a fi pe care l-am văzut în viață" },
+    { title: "Și acesta e doar începutul.", caption: "Mai avem atât de multe pagini frumoase de scris, împreună.", number: "06 — continuăm?" }
+  ];
 
-      function stopCelebration() {
-        clearInterval(confettiInterval);
-        confettiField.stop();
-      }
+  queryAll(".js-hover").forEach(addHoverMotion);
+  gsap.to(".type-cursor", { autoAlpha: 0.22, duration: motionDuration(0.52), repeat: -1, yoyo: true, ease: "sine.inOut" });
 
-      const introCanvas = new IntroCanvas(dom.introCanvas, {
-        onChallengeStart: (stroke, total) => {
-          dom.introStatus.textContent = "Desenează " + stroke.label + ". Urmărește linia luminoasă — 1 din " + String(total) + ".";
-        },
-        onChallengeProgress: (stroke, position, total) => {
-          dom.introStatus.textContent = "Perfect. Continuă cu " + stroke.label + " — " + String(position) + " din " + String(total) + ".";
-        },
-        onComplete: () => {
-          dom.introStatus.textContent = "Ai unit povestea noastră. Acum o putem descoperi.";
-          dom.enterGallery.disabled = false;
-          gsap.fromTo(dom.enterGallery, {
-            autoAlpha: 0,
-            y: 12
-          }, {
-            autoAlpha: 1,
-            y: 0,
-            duration: motionDuration(0.56),
-            ease: "back.out(1.65)"
-          });
-        }
-      });
+  const typewriter = new Typewriter(dom.typewriter);
+  const wordReveal = new WordReveal(dom.messageWords, dom.proposalActions);
+  const confettiField = new ConfettiField(dom.confettiCanvas);
+  let confettiInterval = 0;
 
-      dom.cards.forEach((card) => {
-        const image = query("img", card);
-        card.style.setProperty("--card-image", "url('" + image.getAttribute("src") + "')");
-      });
+  function burstConfetti() { if (typeof window.confetti === "function") window.confetti({ particleCount: prefersReducedMotion ? 20 : 56, spread: 72, startVelocity: 33, origin: { y: 0.62 }, colors: ["#ff9fbc", "#bda5ff", "#95e9ce", "#ffe49d", "#f7f5ff"], disableForReducedMotion: true }); }
+  function startCelebration() { clearInterval(confettiInterval); confettiField.start(); burstConfetti(); confettiInterval = window.setInterval(burstConfetti, prefersReducedMotion ? 3200 : 1900); }
+  function stopCelebration() { clearInterval(confettiInterval); confettiField.stop(); }
 
-      const carousel = new Carousel({
-        scene: dom.carouselScene,
-        ring: dom.carouselRing,
-        cards: dom.cards,
-        counter: dom.slideCounter,
-        onChange: (index) => {
-          const slide = slides[index];
-          dom.copyNumber.textContent = slide.number;
-          dom.galleryCaption.textContent = slide.caption;
-          typewriter.set(slide.title);
-        }
-      });
+  const introCanvas = new IntroCanvas(dom.introCanvas, {
+    onChallengeStart: (stroke, total) => { dom.introStatus.textContent = "Desenează " + stroke.label + ". Urmărește linia luminoasă — 1 din " + String(total) + "."; },
+    onChallengeProgress: (stroke, position, total) => { dom.introStatus.textContent = "Perfect. Continuă cu " + stroke.label + " — " + String(position) + " din " + String(total) + "."; },
+    onComplete: () => { dom.introStatus.textContent = "Ai unit povestea noastră. Acum o putem descoperi."; dom.enterGallery.disabled = false; gsap.fromTo(dom.enterGallery, { autoAlpha: 0, y: 12 }, { autoAlpha: 1, y: 0, duration: motionDuration(0.56), ease: "back.out(1.65)" }); }
+  });
 
-      const screens = new Map(dom.screens.map((screen) => [screen.dataset.screen, screen]));
-      const machine = new StateMachine({
-        screens,
-        transitions: {
-          initial: ["gallery"],
-          gallery: ["message"],
-          message: ["celebration"],
-          celebration: ["initial"]
-        },
-        onExit: async (current) => {
-          if (current === "initial") {
-            introCanvas.stop();
-          }
+  dom.cards.forEach((card) => { const image = query("img", card); card.style.setProperty("--card-image", "url('" + image.getAttribute("src") + "')"); });
 
-          if (current === "gallery") {
-            typewriter.stop();
-          }
+  const carousel = new Carousel({ scene: dom.carouselScene, ring: dom.carouselRing, cards: dom.cards, counter: dom.slideCounter, onChange: (index) => { const slide = slides[index]; dom.copyNumber.textContent = slide.number; dom.galleryCaption.textContent = slide.caption; typewriter.set(slide.title); } });
 
-          if (current === "celebration") {
-            stopCelebration();
-          }
-        },
-        onEnter: async (state) => {
-          if (state === "initial") {
-            wordReveal.reset();
-            dom.introStatus.textContent = "Se conturează ceva frumos...";
-            dom.enterGallery.disabled = true;
-            gsap.set(dom.enterGallery, { autoAlpha: 0, y: 12 });
-            introCanvas.play();
-          }
+  const screens = new Map(dom.screens.map((screen) => [screen.dataset.screen, screen]));
+  const machine = new StateMachine({
+    screens,
+    transitions: { initial: ["gallery"], gallery: ["message"], message: ["celebration"], celebration: ["initial"] },
+    onExit: async (current) => { if (current === "initial") introCanvas.stop(); if (current === "gallery") typewriter.stop(); if (current === "celebration") stopCelebration(); },
+    onEnter: async (state) => {
+      if (state === "initial") { wordReveal.reset(); dom.introStatus.textContent = "Se conturează ceva frumos..."; dom.enterGallery.disabled = true; gsap.set(dom.enterGallery, { autoAlpha: 0, y: 12 }); introCanvas.play(); }
+      if (state === "gallery") { carousel.goTo(0, false); gsap.fromTo(".gallery-intro, .gallery-copy, .gallery-scene-wrap", { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, duration: motionDuration(0.64), stagger: motionDuration(0.1), ease: "power3.out", clearProps: "transform,opacity,visibility" }); }
+      if (state === "message") wordReveal.show("Vrei să continuăm să transformăm fiecare zi obișnuită într-o amintire extraordinară, împreună?");
+      if (state === "celebration") { startCelebration(); gsap.fromTo(".celebration-card > *", { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, duration: motionDuration(0.62), stagger: motionDuration(0.11), ease: "power3.out", clearProps: "transform,opacity,visibility" }); }
+    }
+  });
 
-          if (state === "gallery") {
-            carousel.goTo(0, false);
-            gsap.fromTo(".gallery-intro, .gallery-copy, .gallery-scene-wrap", {
-              autoAlpha: 0,
-              y: 18
-            }, {
-              autoAlpha: 1,
-              y: 0,
-              duration: motionDuration(0.64),
-              stagger: motionDuration(0.1),
-              ease: "power3.out",
-              clearProps: "transform,opacity,visibility"
-            });
-          }
+  bindPress(dom.enterGallery, () => { if (!dom.enterGallery.disabled) machine.go("gallery"); });
+  bindPress(dom.previousSlide, () => carousel.previous());
+  bindPress(dom.nextSlide, () => carousel.next());
+  bindPress(dom.toMessage, () => machine.go("message"));
+  bindPress(dom.yesButton, () => machine.go("celebration"));
+  bindPress(dom.replayButton, () => machine.go("initial"));
 
-          if (state === "message") {
-            wordReveal.show("Vrei să continuăm să transformăm fiecare zi obișnuită într-o amintire extraordinară, împreună?");
-          }
-
-          if (state === "celebration") {
-            startCelebration();
-            gsap.fromTo(".celebration-card > *", {
-              autoAlpha: 0,
-              y: 20
-            }, {
-              autoAlpha: 1,
-              y: 0,
-              duration: motionDuration(0.62),
-              stagger: motionDuration(0.11),
-              ease: "power3.out",
-              clearProps: "transform,opacity,visibility"
-            });
-          }
-        }
-      });
-
-      bindPress(dom.enterGallery, () => {
-        if (!dom.enterGallery.disabled) {
-          machine.go("gallery");
-        }
-      });
-      bindPress(dom.previousSlide, () => carousel.previous());
-      bindPress(dom.nextSlide, () => carousel.next());
-      bindPress(dom.toMessage, () => machine.go("message"));
-      bindPress(dom.yesButton, () => machine.go("celebration"));
-      bindPress(dom.replayButton, () => machine.go("initial"));
-
-      machine.go("initial");
-      window.VGExperience = { machine, carousel };
-    })();
+  machine.go("initial");
+  window.VGExperience = { machine, carousel };
+})();
   </script>
 </body>
 </html>
