@@ -1,0 +1,2033 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090b16">
+  <meta name="description" content="O mică poveste pentru V și G.">
+  <title>V + G — O poveste</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <script>
+    tailwind = {
+      config: {
+        theme: {
+          extend: {
+            colors: {
+              roseglow: "#ff9fbc"
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <style>
+    :root {
+      --ink: #080a14;
+      --ink-soft: #111427;
+      --surface: rgba(20, 24, 43, 0.56);
+      --surface-strong: rgba(26, 30, 52, 0.84);
+      --line: rgba(255, 255, 255, 0.12);
+      --text: #f7f5ff;
+      --muted: #b8b5ca;
+      --rose: #ff9fbc;
+      --rose-deep: #f06191;
+      --lilac: #bda5ff;
+      --mint: #95e9ce;
+      --shadow: 0 1.5rem 4.5rem rgba(0, 0, 0, 0.34);
+      --radius-lg: clamp(1.5rem, 5vw, 3.2rem);
+      --radius-md: clamp(1rem, 3vw, 1.6rem);
+      --page-pad: clamp(1.15rem, 4vw, 4.5rem);
+      --carousel-depth: min(39vw, 14rem);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--ink);
+      color-scheme: dark;
+    }
+
+    body {
+      min-width: 20rem;
+      min-height: 100vh;
+      min-height: 100svh;
+      margin: 0;
+      overflow: hidden;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 18%, rgba(189, 165, 255, 0.18), transparent 27rem),
+        radial-gradient(circle at 87% 74%, rgba(255, 116, 161, 0.16), transparent 30rem),
+        radial-gradient(circle at 50% 115%, rgba(85, 208, 182, 0.12), transparent 27rem),
+        var(--ink);
+      font-family: "DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      content: "";
+      opacity: 0.32;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E");
+      mix-blend-mode: soft-light;
+    }
+
+    button {
+      border: 0;
+      font: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:focus-visible {
+      outline: 0.18rem solid var(--mint);
+      outline-offset: 0.25rem;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      min-height: 100svh;
+      isolation: isolate;
+    }
+
+    .brand {
+      position: absolute;
+      z-index: 10;
+      top: clamp(1.1rem, 3vw, 2.4rem);
+      left: var(--page-pad);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      color: rgba(255, 255, 255, 0.78);
+      font-family: "DM Mono", ui-monospace, monospace;
+      font-size: clamp(0.67rem, 1.8vw, 0.8rem);
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 1.9rem;
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 50%;
+      color: var(--rose);
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: 1.05rem;
+      letter-spacing: 0;
+    }
+
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      min-height: 100%;
+      padding: clamp(5rem, 11vh, 7.5rem) var(--page-pad) clamp(1.6rem, 5vh, 3rem);
+      visibility: hidden;
+      opacity: 0;
+      pointer-events: none;
+      overflow: hidden auto;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+      contain: layout style;
+    }
+
+    .screen::-webkit-scrollbar {
+      display: none;
+    }
+
+    .screen.is-active {
+      visibility: visible;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--mint);
+      font-family: "DM Mono", ui-monospace, monospace;
+      font-size: clamp(0.65rem, 1.9vw, 0.77rem);
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .display-title {
+      margin: 0;
+      color: var(--text);
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: clamp(2.2rem, 9vw, 5.6rem);
+      font-weight: 600;
+      line-height: 0.98;
+      letter-spacing: -0.05em;
+    }
+
+    .intro-screen {
+      align-items: center;
+    }
+
+    .intro-layout {
+      display: grid;
+      width: min(100%, 62rem);
+      margin: auto;
+      gap: clamp(1.3rem, 4vh, 2.5rem);
+      justify-items: center;
+      text-align: center;
+    }
+
+    .intro-heading {
+      display: grid;
+      gap: 0.8rem;
+      justify-items: center;
+    }
+
+    .intro-subtitle {
+      max-width: 31rem;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(0.96rem, 2.8vw, 1.15rem);
+      line-height: 1.65;
+    }
+
+    .canvas-shell {
+      position: relative;
+      width: min(100%, 42rem);
+      height: clamp(15rem, 38vh, 25rem);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: var(--radius-lg);
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.015)),
+        rgba(8, 10, 24, 0.43);
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+      backdrop-filter: blur(1rem);
+      -webkit-backdrop-filter: blur(1rem);
+      transform: translateZ(0);
+      backface-visibility: hidden;
+    }
+
+    .canvas-shell::before,
+    .canvas-shell::after {
+      position: absolute;
+      z-index: 1;
+      width: clamp(4rem, 16vw, 8rem);
+      aspect-ratio: 1;
+      pointer-events: none;
+      content: "";
+      filter: blur(1.4rem);
+    }
+
+    .canvas-shell::before {
+      top: -20%;
+      left: -8%;
+      border-radius: 50%;
+      background: rgba(189, 165, 255, 0.24);
+    }
+
+    .canvas-shell::after {
+      right: -8%;
+      bottom: -24%;
+      border-radius: 50%;
+      background: rgba(255, 117, 165, 0.2);
+    }
+
+    #initial-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .intro-actions {
+      display: grid;
+      gap: 0.9rem;
+      justify-items: center;
+    }
+
+    .status-line {
+      min-height: 1.4em;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(0.83rem, 2.3vw, 0.95rem);
+    }
+
+    .button-primary,
+    .button-secondary,
+    .icon-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 2.75rem;
+      min-height: 2.75rem;
+      border-radius: 999px;
+      touch-action: manipulation;
+      will-change: transform;
+    }
+
+    .button-primary {
+      gap: 0.7rem;
+      padding: 0.78rem 1.15rem;
+      color: #210c17;
+      background: linear-gradient(135deg, #ffd8e4, var(--rose));
+      box-shadow: 0 0.85rem 2.1rem rgba(240, 97, 145, 0.25);
+      font-size: clamp(0.88rem, 2.5vw, 1rem);
+      font-weight: 700;
+    }
+
+    .button-primary:disabled {
+      cursor: wait;
+      opacity: 0.45;
+      box-shadow: none;
+    }
+
+    .button-arrow {
+      display: grid;
+      width: 1.2em;
+      aspect-ratio: 1;
+      place-items: center;
+      border-radius: 50%;
+      background: rgba(28, 10, 19, 0.12);
+    }
+
+    .button-secondary {
+      gap: 0.55rem;
+      padding: 0.72rem 1.1rem;
+      border: 1px solid var(--line);
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+      font-size: clamp(0.84rem, 2.3vw, 0.96rem);
+      font-weight: 600;
+      backdrop-filter: blur(0.8rem);
+      -webkit-backdrop-filter: blur(0.8rem);
+    }
+
+    .gesture-hint {
+      position: absolute;
+      right: var(--page-pad);
+      bottom: clamp(1.3rem, 3vh, 2rem);
+      left: var(--page-pad);
+      margin: 0;
+      color: rgba(255, 255, 255, 0.46);
+      font-family: "DM Mono", ui-monospace, monospace;
+      font-size: clamp(0.64rem, 1.8vw, 0.72rem);
+      letter-spacing: 0.08em;
+      text-align: center;
+    }
+
+    .gallery-screen {
+      align-items: center;
+    }
+
+    .gallery-layout {
+      display: grid;
+      width: min(100%, 84rem);
+      margin: auto;
+      gap: clamp(1.35rem, 5vh, 3.4rem);
+    }
+
+    .gallery-intro {
+      display: grid;
+      gap: 0.7rem;
+      text-align: center;
+    }
+
+    .gallery-intro .display-title {
+      font-size: clamp(2rem, 7.2vw, 4.25rem);
+    }
+
+    .gallery-scene-wrap {
+      display: grid;
+      gap: 0.9rem;
+      min-width: 0;
+    }
+
+    .carousel-scene {
+      position: relative;
+      height: clamp(18rem, 48vh, 31rem);
+      perspective: 62rem;
+      perspective-origin: 50% 46%;
+      touch-action: pan-y;
+      user-select: none;
+      isolation: isolate;
+    }
+
+    .carousel-ring {
+      position: absolute;
+      inset: 0;
+      transform-style: preserve-3d;
+      transform: translateZ(0);
+      will-change: transform;
+    }
+
+    .memory-card {
+      --card-x: 0%;
+      --card-z: 0rem;
+      --card-tilt: 0deg;
+      --card-scale: 0.88;
+      --card-image: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: min(68vw, 20rem);
+      height: min(44vh, 25rem);
+      min-height: 15rem;
+      margin: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: clamp(1.1rem, 4vw, 1.8rem);
+      background: #1e2133;
+      box-shadow: 0 1.2rem 3.4rem rgba(0, 0, 0, 0.32);
+      opacity: 0;
+      pointer-events: none;
+      transform: translate3d(calc(-50% + var(--card-x)), -50%, var(--card-z)) rotateY(var(--card-tilt)) scale(var(--card-scale));
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      transform-style: preserve-3d;
+      will-change: transform, opacity;
+      contain: layout style;
+    }
+
+    .memory-card:first-child {
+      opacity: 1;
+      --card-scale: 1;
+    }
+
+    .memory-card::before {
+      position: absolute;
+      inset: -8%;
+      z-index: 0;
+      content: "";
+      background: var(--card-image) center / cover no-repeat;
+      filter: blur(0.65rem) saturate(0.9) brightness(0.8);
+      transform: scale(1.06);
+      will-change: transform;
+      backface-visibility: hidden;
+    }
+
+    .memory-card::after {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      content: "";
+      background: linear-gradient(180deg, transparent 46%, rgba(5, 6, 13, 0.74));
+    }
+
+    .memory-card img {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: saturate(0.91) contrast(1.04);
+      will-change: transform;
+      backface-visibility: hidden;
+    }
+
+    .memory-card.is-current {
+      border-color: rgba(255, 214, 228, 0.72);
+      box-shadow: 0 1.6rem 4rem rgba(0, 0, 0, 0.44), 0 0 0 1px rgba(255, 159, 188, 0.16);
+    }
+
+    .memory-card figcaption {
+      position: absolute;
+      z-index: 3;
+      right: 1rem;
+      bottom: 0.95rem;
+      left: 1rem;
+      color: rgba(255, 255, 255, 0.9);
+      font-family: "DM Mono", ui-monospace, monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    .carousel-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.8rem;
+    }
+
+    .icon-button {
+      width: 2.75rem;
+      border: 1px solid var(--line);
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+      font-size: 1.28rem;
+      line-height: 1;
+      backdrop-filter: blur(0.8rem);
+      -webkit-backdrop-filter: blur(0.8rem);
+    }
+
+    .slide-counter {
+      min-width: 4.4rem;
+      color: var(--muted);
+      font-family: "DM Mono", ui-monospace, monospace;
+      font-size: 0.74rem;
+      letter-spacing: 0.12em;
+      text-align: center;
+    }
+
+    .gallery-copy {
+      display: grid;
+      align-content: center;
+      gap: clamp(1rem, 3vh, 1.65rem);
+      min-height: min(22rem, 48vh);
+      padding: clamp(1.25rem, 5vw, 2.5rem);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.095), rgba(255, 255, 255, 0.025)),
+        var(--surface);
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(0.9rem);
+      -webkit-backdrop-filter: blur(0.9rem);
+      transform: translateZ(0);
+    }
+
+    .copy-number {
+      margin: 0;
+      color: var(--rose);
+      font-family: "DM Mono", ui-monospace, monospace;
+      font-size: 0.73rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .gallery-copy h2 {
+      min-height: 3.1em;
+      margin: 0;
+      color: var(--text);
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: clamp(1.75rem, 5.5vw, 3.2rem);
+      font-weight: 600;
+      line-height: 1.13;
+      letter-spacing: -0.04em;
+    }
+
+    #typewriter {
+      overflow-wrap: anywhere;
+    }
+
+    .type-cursor {
+      display: inline-block;
+      width: 0.07em;
+      height: 0.85em;
+      margin-left: 0.08em;
+      vertical-align: -0.04em;
+      border-radius: 1em;
+      background: var(--rose);
+      will-change: opacity;
+    }
+
+    .gallery-caption {
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(0.93rem, 2.4vw, 1.06rem);
+      line-height: 1.65;
+    }
+
+    .drag-note {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.44);
+      font-family: "DM Mono", ui-monospace, monospace;
+      font-size: 0.67rem;
+      letter-spacing: 0.05em;
+    }
+
+    .message-screen {
+      align-items: center;
+    }
+
+    .message-card {
+      display: grid;
+      width: min(100%, 55rem);
+      margin: auto;
+      gap: clamp(1.2rem, 4vh, 2.15rem);
+      padding: clamp(1.45rem, 6vw, 4.2rem);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background:
+        radial-gradient(circle at 90% 0%, rgba(255, 159, 188, 0.15), transparent 35%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.022)),
+        var(--surface-strong);
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      text-align: center;
+      backdrop-filter: blur(1rem);
+      -webkit-backdrop-filter: blur(1rem);
+      transform: translateZ(0);
+    }
+
+    .message-card .eyebrow {
+      color: var(--rose);
+    }
+
+    .message-card .display-title {
+      font-size: clamp(2.25rem, 8vw, 4.7rem);
+    }
+
+    #message-words {
+      max-width: 45rem;
+      margin: 0 auto;
+      color: #e8e6f0;
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: clamp(1.24rem, 4.3vw, 2.15rem);
+      font-style: italic;
+      line-height: 1.5;
+    }
+
+    .message-word {
+      display: inline-block;
+      margin-right: 0.25em;
+      opacity: 0;
+      will-change: transform, opacity;
+    }
+
+    .proposal-actions {
+      display: grid;
+      justify-items: center;
+      gap: 0.85rem;
+      opacity: 0;
+    }
+
+    .yes-button {
+      min-width: min(100%, 17rem);
+      min-height: 3.15rem;
+      padding: 0.82rem 1.35rem;
+      color: #220b17;
+      background: linear-gradient(135deg, #ffd7e5, var(--rose), #e981aa);
+      box-shadow: 0 1rem 2.5rem rgba(240, 97, 145, 0.31);
+      font-size: clamp(0.98rem, 2.8vw, 1.08rem);
+      font-weight: 700;
+    }
+
+    .proposal-note {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.53);
+      font-size: 0.82rem;
+    }
+
+    .celebration-screen {
+      align-items: center;
+    }
+
+    .celebration-card {
+      display: grid;
+      width: min(100%, 47rem);
+      margin: auto;
+      gap: 1.2rem;
+      justify-items: center;
+      padding: clamp(2rem, 8vw, 5.2rem) clamp(1.3rem, 6vw, 4rem);
+      border: 1px solid rgba(255, 216, 229, 0.24);
+      border-radius: var(--radius-lg);
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255, 169, 195, 0.26), transparent 40%),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.035)),
+        rgba(22, 16, 36, 0.76);
+      box-shadow: 0 1.7rem 5rem rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      text-align: center;
+      backdrop-filter: blur(1rem);
+      -webkit-backdrop-filter: blur(1rem);
+      transform: translateZ(0);
+    }
+
+    .celebration-symbol {
+      display: grid;
+      width: clamp(4rem, 15vw, 6rem);
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.27);
+      border-radius: 50%;
+      color: var(--rose);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 2.6rem rgba(255, 115, 163, 0.24);
+      font-size: clamp(2.1rem, 8vw, 3.4rem);
+      line-height: 1;
+    }
+
+    .celebration-card .display-title {
+      font-size: clamp(2.5rem, 10vw, 5.7rem);
+    }
+
+    .celebration-card p {
+      max-width: 28rem;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(0.95rem, 2.8vw, 1.1rem);
+      line-height: 1.65;
+    }
+
+    #confetti-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (min-width: 48rem) {
+      :root {
+        --carousel-depth: min(31vw, 18rem);
+      }
+
+      .gallery-layout {
+        gap: clamp(2rem, 6vh, 4rem);
+      }
+
+      .carousel-scene {
+        height: clamp(22rem, 49vh, 33rem);
+      }
+
+      .memory-card {
+        width: min(48vw, 22rem);
+        height: min(47vh, 27rem);
+      }
+
+      .gallery-copy {
+        min-height: 16rem;
+      }
+    }
+
+    @media (min-width: 64rem) {
+      :root {
+        --carousel-depth: min(20vw, 20rem);
+      }
+
+      .gallery-layout {
+        grid-template-columns: minmax(0, 1.08fr) minmax(19rem, 0.92fr);
+        align-items: center;
+        column-gap: clamp(2.5rem, 7vw, 7rem);
+      }
+
+      .gallery-intro {
+        grid-column: 1 / -1;
+        text-align: left;
+      }
+
+      .gallery-scene-wrap {
+        grid-column: 1;
+        grid-row: 2;
+      }
+
+      .gallery-copy {
+        grid-column: 2;
+        grid-row: 2;
+      }
+
+      .carousel-scene {
+        height: clamp(25rem, 58vh, 36rem);
+      }
+
+      .memory-card {
+        width: min(25vw, 23rem);
+        height: min(48vh, 29rem);
+      }
+
+      .carousel-controls {
+        justify-content: flex-start;
+      }
+
+      .gesture-hint {
+        text-align: right;
+      }
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .memory-card img {
+        transform: scale(1.01);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <div class="brand" aria-label="V plus G">
+      <span class="brand-mark">V</span>
+      <span>V + G</span>
+    </div>
+
+    <section class="screen intro-screen is-active" data-screen="initial" aria-label="Introducere">
+      <div class="intro-layout">
+        <div class="intro-heading">
+          <p class="eyebrow">o poveste în patru momente</p>
+          <h1 class="display-title">Pentru noi doi.</h1>
+          <p class="intro-subtitle">Unele conexiuni merită desenate încet, cu grijă, de la prima linie.</p>
+        </div>
+
+        <div class="canvas-shell">
+          <canvas id="initial-canvas" aria-label="Unește punctele după desenarea inițialelor"></canvas>
+        </div>
+
+        <div class="intro-actions">
+          <p id="intro-status" class="status-line" aria-live="polite">Se conturează ceva frumos...</p>
+          <button id="enter-gallery" class="button-primary js-hover" type="button" disabled>
+            Descoperă povestea
+            <span class="button-arrow" aria-hidden="true">→</span>
+          </button>
+        </div>
+      </div>
+      <p class="gesture-hint">atinge ecranul pentru muzică</p>
+    </section>
+
+    <section class="screen gallery-screen" data-screen="gallery" aria-label="Galerie de amintiri" aria-hidden="true" inert>
+      <div class="gallery-layout">
+        <div class="gallery-intro">
+          <p class="eyebrow">capitolul unu</p>
+          <h2 class="display-title">Amintiri în mișcare.</h2>
+        </div>
+
+        <div class="gallery-scene-wrap">
+          <div id="carousel-scene" class="carousel-scene" aria-roledescription="carusel">
+            <div id="carousel-ring" class="carousel-ring">
+              <figure class="memory-card" style="--rotation: 0deg;">
+                <img src="poza1.jpg" alt="Amintirea noastră, prima fotografie">
+                <figcaption>momentul 01</figcaption>
+              </figure>
+              <figure class="memory-card" style="--rotation: 60deg;">
+                <img src="poza2.jpg" alt="Amintirea noastră, a doua fotografie">
+                <figcaption>momentul 02</figcaption>
+              </figure>
+              <figure class="memory-card" style="--rotation: 120deg;">
+                <img src="poza3.jpg" alt="Amintirea noastră, a treia fotografie">
+                <figcaption>momentul 03</figcaption>
+              </figure>
+              <figure class="memory-card" style="--rotation: 180deg;">
+                <img src="poza4.jpg" alt="Amintirea noastră, a patra fotografie">
+                <figcaption>momentul 04</figcaption>
+              </figure>
+              <figure class="memory-card" style="--rotation: 240deg;">
+                <img src="poza5.jpg" alt="Amintirea noastră, a cincea fotografie">
+                <figcaption>momentul 05</figcaption>
+              </figure>
+              <figure class="memory-card" style="--rotation: 300deg;">
+                <img src="poza6.jpg" alt="Amintirea noastră, a șasea fotografie">
+                <figcaption>momentul 06</figcaption>
+              </figure>
+            </div>
+          </div>
+
+          <div class="carousel-controls">
+            <button id="previous-slide" class="icon-button js-hover" type="button" aria-label="Fotografia anterioară">←</button>
+            <span id="slide-counter" class="slide-counter" aria-live="polite">01 / 06</span>
+            <button id="next-slide" class="icon-button js-hover" type="button" aria-label="Fotografia următoare">→</button>
+          </div>
+        </div>
+
+        <article class="gallery-copy">
+          <p id="copy-number" class="copy-number">01 — o clipă</p>
+          <h2><span id="typewriter"></span><span class="type-cursor" aria-hidden="true"></span></h2>
+          <p id="gallery-caption" class="gallery-caption">Fiecare fotografie păstrează o parte din noi.</p>
+          <p class="drag-note">glisează sau folosește săgețile</p>
+          <button id="to-message" class="button-secondary js-hover" type="button">
+            Mai departe <span aria-hidden="true">→</span>
+          </button>
+        </article>
+      </div>
+    </section>
+
+    <section class="screen message-screen" data-screen="message" aria-label="Mesaj" aria-hidden="true" inert>
+      <article class="message-card">
+        <p class="eyebrow">capitolul doi</p>
+        <h2 class="display-title">O întrebare simplă.</h2>
+        <p id="message-words" aria-live="polite"></p>
+        <div id="proposal-actions" class="proposal-actions">
+          <button id="yes-button" class="button-primary yes-button js-hover" type="button">Da, din toată inima</button>
+          <p class="proposal-note">Promit să aleg mereu „noi”.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="screen celebration-screen" data-screen="celebration" aria-label="Sărbătoare" aria-hidden="true" inert>
+      <article class="celebration-card">
+        <div class="celebration-symbol" aria-hidden="true">♥</div>
+        <p class="eyebrow">cel mai frumos răspuns</p>
+        <h2 class="display-title">Atunci e oficial.</h2>
+        <p>Victoria, de azi și în toate zilele care urmează. Cu râsete, aventuri și foarte multă dragoste 🥰</p>
+        <button id="replay-button" class="button-secondary js-hover" type="button">Retrăiește povestea <span aria-hidden="true">↺</span></button>
+      </article>
+    </section>
+  </main>
+
+  <canvas id="confetti-canvas" aria-hidden="true"></canvas>
+  <audio id="bg-music" src="muzica.mp3" preload="metadata" loop></audio>
+  <noscript>Activează JavaScript pentru a vedea povestea.</noscript>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const motionDuration = (value) => (prefersReducedMotion ? 0.01 : value);
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+      const query = (selector, scope = document) => scope.querySelector(selector);
+      const queryAll = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
+
+      gsap.config({ force3D: "auto", nullTargetWarn: false });
+      gsap.ticker.lagSmoothing(800, 24);
+
+      const dom = {
+        screens: queryAll("[data-screen]"),
+        introCanvas: query("#initial-canvas"),
+        introStatus: query("#intro-status"),
+        enterGallery: query("#enter-gallery"),
+        carouselScene: query("#carousel-scene"),
+        carouselRing: query("#carousel-ring"),
+        cards: queryAll(".memory-card"),
+        previousSlide: query("#previous-slide"),
+        nextSlide: query("#next-slide"),
+        slideCounter: query("#slide-counter"),
+        copyNumber: query("#copy-number"),
+        typewriter: query("#typewriter"),
+        galleryCaption: query("#gallery-caption"),
+        toMessage: query("#to-message"),
+        messageWords: query("#message-words"),
+        proposalActions: query("#proposal-actions"),
+        yesButton: query("#yes-button"),
+        replayButton: query("#replay-button"),
+        music: query("#bg-music"),
+        confettiCanvas: query("#confetti-canvas")
+      };
+
+      function bindPress(element, handler) {
+        let lastTouch = 0;
+
+        element.addEventListener("touchstart", (event) => {
+          lastTouch = Date.now();
+          handler(event);
+        }, { passive: true });
+
+        element.addEventListener("click", (event) => {
+          if (Date.now() - lastTouch < 650) {
+            return;
+          }
+          handler(event);
+        });
+      }
+
+      function addHoverMotion(element) {
+        if (prefersReducedMotion || !window.matchMedia("(hover: hover)").matches) {
+          return;
+        }
+
+        element.addEventListener("mouseenter", () => {
+          if (!element.disabled) {
+            gsap.to(element, { scale: 1.045, duration: 0.22, ease: "power2.out", overwrite: true });
+          }
+        });
+
+        element.addEventListener("mouseleave", () => {
+          gsap.to(element, { scale: 1, duration: 0.28, ease: "power2.out", overwrite: true });
+        });
+      }
+
+      class AudioController {
+        constructor(audio) {
+          this.audio = audio;
+          this.started = false;
+          this.audio.volume = 0.34;
+        }
+
+        start() {
+          if (this.started) {
+            return;
+          }
+
+          this.started = true;
+          this.audio.play().catch(() => {
+            this.started = false;
+          });
+        }
+      }
+
+      class IntroCanvas {
+        constructor(canvas, callbacks) {
+          this.canvas = canvas;
+          this.context = canvas.getContext("2d");
+          this.onChallengeStart = callbacks.onChallengeStart;
+          this.onChallengeProgress = callbacks.onChallengeProgress;
+          this.onComplete = callbacks.onComplete;
+          this.model = { progress: 0, pulse: 0 };
+          this.frameRequested = false;
+          this.timeline = null;
+          this.pulseTween = null;
+          this.width = 0;
+          this.height = 0;
+          this.pixelRatio = 1;
+          this.challenge = {
+            active: false,
+            isDrawing: false,
+            strokeIndex: 0,
+            checkpointIndex: 1,
+            strokes: [],
+            paths: [],
+            currentPath: []
+          };
+          this.resize = this.resize.bind(this);
+          this.handlePointerDown = this.handlePointerDown.bind(this);
+          this.handlePointerMove = this.handlePointerMove.bind(this);
+          this.handlePointerUp = this.handlePointerUp.bind(this);
+
+          window.addEventListener("resize", this.resize, { passive: true });
+          this.canvas.addEventListener("pointerdown", this.handlePointerDown);
+          this.canvas.addEventListener("pointermove", this.handlePointerMove);
+          this.canvas.addEventListener("pointerup", this.handlePointerUp);
+          this.canvas.addEventListener("pointercancel", this.handlePointerUp);
+          this.resize();
+        }
+
+        resize() {
+          const bounds = this.canvas.getBoundingClientRect();
+          this.width = Math.max(1, bounds.width);
+          this.height = Math.max(1, bounds.height);
+          this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+          this.canvas.width = Math.round(this.width * this.pixelRatio);
+          this.canvas.height = Math.round(this.height * this.pixelRatio);
+          this.context.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
+          if (this.challenge.active) {
+            this.challenge.strokes = this.createDrawingStrokes();
+            this.challenge.paths = [];
+            this.challenge.currentPath = [];
+            this.challenge.strokeIndex = 0;
+            this.challenge.checkpointIndex = 1;
+          }
+          this.render();
+        }
+
+        scheduleRender() {
+          if (this.frameRequested) {
+            return;
+          }
+
+          this.frameRequested = true;
+          requestAnimationFrame(() => {
+            this.frameRequested = false;
+            this.render();
+          });
+        }
+
+        play() {
+          if (this.timeline) {
+            this.timeline.kill();
+          }
+
+          this.model.progress = 1;
+          this.stopChallenge();
+          this.startChallenge();
+        }
+
+        stop() {
+          if (this.timeline) {
+            this.timeline.kill();
+          }
+          this.stopChallenge();
+        }
+
+        createDrawingStrokes() {
+          const scale = Math.min(this.width / 560, this.height / 270);
+          const centerX = this.width / 2;
+          const centerY = this.height / 2 + 3 * scale;
+
+          return [
+            {
+              label: "litera V",
+              color: "#ffb0c9",
+              points: [
+                { x: centerX - 190 * scale, y: centerY - 72 * scale },
+                { x: centerX - 139 * scale, y: centerY + 80 * scale },
+                { x: centerX - 86 * scale, y: centerY - 72 * scale }
+              ]
+            },
+            {
+              label: "bara orizontală",
+              color: "#ffb0c9",
+              points: [
+                { x: centerX - 42 * scale, y: centerY + 2 * scale },
+                { x: centerX + 16 * scale, y: centerY + 2 * scale }
+              ]
+            },
+            {
+              label: "bara verticală",
+              color: "#ffb0c9",
+              points: [
+                { x: centerX - 13 * scale, y: centerY - 27 * scale },
+                { x: centerX - 13 * scale, y: centerY + 31 * scale }
+              ]
+            },
+            {
+              label: "litera G",
+              color: "#bda5ff",
+              points: [
+                { x: centerX + 160 * scale, y: centerY - 47 * scale },
+                { x: centerX + 61 * scale, y: centerY - 42 * scale },
+                { x: centerX + 42 * scale, y: centerY + 28 * scale },
+                { x: centerX + 112 * scale, y: centerY + 67 * scale },
+                { x: centerX + 179 * scale, y: centerY + 15 * scale },
+                { x: centerX + 127 * scale, y: centerY + 15 * scale }
+              ]
+            }
+          ];
+        }
+
+        startChallenge() {
+          this.challenge.active = true;
+          this.challenge.isDrawing = false;
+          this.challenge.strokeIndex = 0;
+          this.challenge.checkpointIndex = 1;
+          this.challenge.strokes = this.createDrawingStrokes();
+          this.challenge.paths = [];
+          this.challenge.currentPath = [];
+          this.model.pulse = 0;
+
+          if (this.pulseTween) {
+            this.pulseTween.kill();
+          }
+
+          this.pulseTween = gsap.to(this.model, {
+            pulse: 1,
+            duration: motionDuration(0.72),
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut",
+            onUpdate: () => this.scheduleRender()
+          });
+
+          this.onChallengeStart(this.challenge.strokes[0], this.challenge.strokes.length);
+          this.scheduleRender();
+        }
+
+        stopChallenge() {
+          this.challenge.active = false;
+          this.challenge.isDrawing = false;
+          this.challenge.paths = [];
+          this.challenge.currentPath = [];
+
+          if (this.pulseTween) {
+            this.pulseTween.kill();
+            this.pulseTween = null;
+          }
+        }
+
+        getCanvasPoint(event) {
+          const bounds = this.canvas.getBoundingClientRect();
+          return {
+            x: event.clientX - bounds.left,
+            y: event.clientY - bounds.top
+          };
+        }
+
+        isNearPoint(position, point) {
+          const radius = clamp(Math.min(this.width, this.height) * 0.075, 20, 34);
+          return Math.hypot(position.x - point.x, position.y - point.y) <= radius;
+        }
+
+        handlePointerDown(event) {
+          if (!this.challenge.active) {
+            return;
+          }
+
+          const currentStroke = this.challenge.strokes[this.challenge.strokeIndex];
+          const startPoint = currentStroke.points[0];
+          const position = this.getCanvasPoint(event);
+
+          if (!this.isNearPoint(position, startPoint)) {
+            return;
+          }
+
+          event.preventDefault();
+          this.challenge.isDrawing = true;
+          this.challenge.currentPath = [startPoint, position];
+          this.challenge.checkpointIndex = 1;
+          this.canvas.setPointerCapture?.(event.pointerId);
+          this.scheduleRender();
+        }
+
+        handlePointerMove(event) {
+          if (!this.challenge.active || !this.challenge.isDrawing) {
+            return;
+          }
+
+          event.preventDefault();
+          const position = this.getCanvasPoint(event);
+          const previous = this.challenge.currentPath[this.challenge.currentPath.length - 1];
+
+          if (Math.hypot(position.x - previous.x, position.y - previous.y) > 2) {
+            this.challenge.currentPath.push(position);
+            const currentStroke = this.challenge.strokes[this.challenge.strokeIndex];
+            const nextCheckpoint = currentStroke.points[this.challenge.checkpointIndex];
+
+            if (nextCheckpoint && this.isNearPoint(position, nextCheckpoint)) {
+              this.challenge.checkpointIndex += 1;
+            }
+
+            this.scheduleRender();
+          }
+        }
+
+        handlePointerUp(event) {
+          if (!this.challenge.active || !this.challenge.isDrawing) {
+            return;
+          }
+
+          const position = this.getCanvasPoint(event);
+          const currentStroke = this.challenge.strokes[this.challenge.strokeIndex];
+          const target = currentStroke.points[currentStroke.points.length - 1];
+          this.challenge.isDrawing = false;
+          this.canvas.releasePointerCapture?.(event.pointerId);
+
+          if (
+            target &&
+            this.challenge.checkpointIndex === currentStroke.points.length - 1 &&
+            this.isNearPoint(position, target)
+          ) {
+            this.challenge.checkpointIndex += 1;
+          }
+
+          if (
+            !target ||
+            this.challenge.checkpointIndex < currentStroke.points.length ||
+            !this.isNearPoint(position, target)
+          ) {
+            this.challenge.currentPath = [];
+            this.scheduleRender();
+            return;
+          }
+
+          this.challenge.currentPath.push(target);
+          this.challenge.paths.push(this.challenge.currentPath);
+          this.challenge.currentPath = [];
+          this.challenge.strokeIndex += 1;
+
+          if (this.challenge.strokeIndex >= this.challenge.strokes.length) {
+            this.challenge.active = false;
+            if (this.pulseTween) {
+              this.pulseTween.kill();
+              this.pulseTween = null;
+            }
+            this.onComplete();
+          } else {
+            this.onChallengeProgress(
+              this.challenge.strokes[this.challenge.strokeIndex],
+              this.challenge.strokeIndex + 1,
+              this.challenge.strokes.length
+            );
+          }
+
+          this.scheduleRender();
+        }
+
+        strokeFreehand(points, color, width) {
+          if (points.length < 2) {
+            return;
+          }
+
+          const context = this.context;
+          context.beginPath();
+          context.moveTo(points[0].x, points[0].y);
+          points.slice(1).forEach((point) => context.lineTo(point.x, point.y));
+          context.strokeStyle = color;
+          context.lineWidth = width;
+          context.stroke();
+        }
+
+        renderChallenge() {
+          const context = this.context;
+          const pointRadius = clamp(Math.min(this.width, this.height) * 0.025, 6, 10);
+          const lineWidth = clamp(Math.min(this.width, this.height) * 0.012, 3, 5);
+          const activeStroke = this.challenge.strokes[this.challenge.strokeIndex];
+
+          context.save();
+          context.lineCap = "round";
+          context.lineJoin = "round";
+          context.shadowColor = "rgba(149, 233, 206, 0.78)";
+          context.shadowBlur = 12;
+
+          this.challenge.strokes.forEach((stroke, index) => {
+            if (index < this.challenge.paths.length) {
+              return;
+            }
+
+            context.save();
+            context.setLineDash(index === this.challenge.strokeIndex ? [5, 7] : [3, 9]);
+            context.globalAlpha = index === this.challenge.strokeIndex ? 0.58 : 0.18;
+            this.strokeFreehand(stroke.points, stroke.color, Math.max(1.3, lineWidth * 0.52));
+            context.restore();
+          });
+
+          this.challenge.paths.forEach((path) => this.strokeFreehand(path, "#95e9ce", lineWidth));
+          this.strokeFreehand(this.challenge.currentPath, "#ffb0c9", lineWidth);
+
+          if (activeStroke) {
+            const start = activeStroke.points[0];
+            const end = activeStroke.points[activeStroke.points.length - 1];
+            const pulse = 1 + this.model.pulse * 0.45;
+
+            [start, end].forEach((point, index) => {
+              context.beginPath();
+              context.arc(point.x, point.y, pointRadius * pulse, 0, Math.PI * 2);
+              context.fillStyle = index === 0 ? "#95e9ce" : "#ff9fbc";
+              context.fill();
+              context.lineWidth = 1.5;
+              context.strokeStyle = "rgba(255, 255, 255, 0.95)";
+              context.stroke();
+            });
+          }
+
+          context.restore();
+        }
+
+        makeArc(centerX, centerY, radius, start, end, steps) {
+          const points = [];
+          for (let step = 0; step <= steps; step += 1) {
+            const progress = step / steps;
+            const angle = start + (end - start) * progress;
+            points.push({
+              x: centerX + Math.cos(angle) * radius,
+              y: centerY + Math.sin(angle) * radius
+            });
+          }
+          return points;
+        }
+
+        strokePartial(points, progress, color, width) {
+          if (progress <= 0 || points.length < 2) {
+            return;
+          }
+
+          const context = this.context;
+          const lengths = [];
+          let totalLength = 0;
+
+          for (let index = 1; index < points.length; index += 1) {
+            const length = Math.hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y);
+            lengths.push(length);
+            totalLength += length;
+          }
+
+          let remaining = totalLength * clamp(progress, 0, 1);
+          context.beginPath();
+          context.moveTo(points[0].x, points[0].y);
+
+          for (let index = 1; index < points.length && remaining > 0; index += 1) {
+            const current = points[index];
+            const previous = points[index - 1];
+            const length = lengths[index - 1];
+
+            if (remaining >= length) {
+              context.lineTo(current.x, current.y);
+              remaining -= length;
+            } else {
+              const ratio = remaining / length;
+              context.lineTo(
+                previous.x + (current.x - previous.x) * ratio,
+                previous.y + (current.y - previous.y) * ratio
+              );
+              remaining = 0;
+            }
+          }
+
+          context.strokeStyle = color;
+          context.lineWidth = width;
+          context.stroke();
+        }
+
+        render() {
+          const context = this.context;
+          const width = this.width;
+          const height = this.height;
+          const scale = Math.min(width / 560, height / 270);
+          const centerX = width / 2;
+          const centerY = height / 2 + 3 * scale;
+          const progress = this.model.progress;
+          const userDrawingExists = this.challenge.active || this.challenge.paths.length > 0;
+          const glyphProgress = userDrawingExists ? 0 : clamp(progress / 0.72, 0, 1);
+          const linkProgress = userDrawingExists ? 0 : clamp((progress - 0.54) / 0.46, 0, 1);
+          const strokeWidth = clamp(3.2 * scale, 2.1, 4.6);
+
+          context.clearRect(0, 0, width, height);
+          context.lineCap = "round";
+          context.lineJoin = "round";
+          context.shadowColor = "rgba(255, 153, 186, 0.75)";
+          context.shadowBlur = 14 * scale;
+
+          const v = [
+            { x: centerX - 190 * scale, y: centerY - 72 * scale },
+            { x: centerX - 139 * scale, y: centerY + 80 * scale },
+            { x: centerX - 86 * scale, y: centerY - 72 * scale }
+          ];
+          const plusHorizontal = [
+            { x: centerX - 42 * scale, y: centerY + 2 * scale },
+            { x: centerX + 16 * scale, y: centerY + 2 * scale }
+          ];
+          const plusVertical = [
+            { x: centerX - 13 * scale, y: centerY - 27 * scale },
+            { x: centerX - 13 * scale, y: centerY + 31 * scale }
+          ];
+          const gArc = this.makeArc(centerX + 111 * scale, centerY, 72 * scale, -0.42, Math.PI * 1.72, 30);
+          const gCross = [
+            { x: centerX + 119 * scale, y: centerY + 4 * scale },
+            { x: centerX + 179 * scale, y: centerY + 4 * scale },
+            { x: centerX + 179 * scale, y: centerY + 48 * scale },
+            { x: centerX + 149 * scale, y: centerY + 51 * scale }
+          ];
+          const paths = [v, plusHorizontal, plusVertical, gArc, gCross];
+
+          paths.forEach((path, index) => {
+            const localProgress = clamp(glyphProgress * paths.length - index, 0, 1);
+            this.strokePartial(path, localProgress, index === 3 || index === 4 ? "#bda5ff" : "#ffb0c9", strokeWidth);
+          });
+
+          context.shadowColor = "rgba(149, 233, 206, 0.64)";
+          context.shadowBlur = 12 * scale;
+          const leftConnector = [
+            { x: centerX - 139 * scale, y: centerY + 80 * scale },
+            { x: centerX - 74 * scale, y: centerY + 103 * scale },
+            { x: centerX + 25 * scale, y: centerY + 96 * scale },
+            { x: centerX + 93 * scale, y: centerY + 66 * scale }
+          ];
+          const topConnector = [
+            { x: centerX - 86 * scale, y: centerY - 72 * scale },
+            { x: centerX - 43 * scale, y: centerY - 100 * scale },
+            { x: centerX + 55 * scale, y: centerY - 101 * scale },
+            { x: centerX + 111 * scale, y: centerY - 72 * scale }
+          ];
+
+          this.strokePartial(leftConnector, linkProgress, "#95e9ce", Math.max(1.4, strokeWidth * 0.43));
+          this.strokePartial(topConnector, clamp((linkProgress - 0.22) / 0.78, 0, 1), "#95e9ce", Math.max(1.4, strokeWidth * 0.43));
+
+          if (linkProgress > 0) {
+            const heartScale = 5.5 * scale * linkProgress;
+            const heartX = centerX + 26 * scale;
+            const heartY = centerY + 96 * scale;
+            context.fillStyle = "#ff9fbc";
+            context.beginPath();
+            context.moveTo(heartX, heartY + heartScale * 0.8);
+            context.bezierCurveTo(heartX - heartScale * 1.65, heartY - heartScale * 0.25, heartX - heartScale * 0.9, heartY - heartScale * 1.52, heartX, heartY - heartScale * 0.65);
+            context.bezierCurveTo(heartX + heartScale * 0.9, heartY - heartScale * 1.52, heartX + heartScale * 1.65, heartY - heartScale * 0.25, heartX, heartY + heartScale * 0.8);
+            context.fill();
+          }
+
+          if (this.challenge.active || this.challenge.paths.length) {
+            this.renderChallenge();
+          }
+
+          context.shadowBlur = 0;
+        }
+      }
+
+      class Typewriter {
+        constructor(element) {
+          this.element = element;
+          this.timeline = null;
+        }
+
+        set(text) {
+          const visibleText = this.element.textContent;
+
+          if (visibleText === text) {
+            return;
+          }
+
+          if (this.timeline) {
+            this.timeline.kill();
+          }
+
+          const state = { length: visibleText.length };
+          const renderText = (source) => {
+            this.element.textContent = source.slice(0, Math.round(state.length));
+          };
+
+          this.timeline = gsap.timeline();
+
+          if (visibleText.length) {
+            this.timeline.to(state, {
+              length: 0,
+              duration: motionDuration(Math.max(0.18, visibleText.length * 0.021)),
+              ease: "none",
+              onUpdate: () => renderText(visibleText)
+            });
+          }
+
+          this.timeline.call(() => {
+            state.length = 0;
+            this.element.textContent = "";
+          });
+
+          this.timeline.to(state, {
+            length: text.length,
+            duration: motionDuration(Math.max(0.46, text.length * 0.038)),
+            ease: "none",
+            onUpdate: () => renderText(text)
+          });
+        }
+
+        stop() {
+          if (this.timeline) {
+            this.timeline.kill();
+          }
+        }
+      }
+
+      class Carousel {
+        constructor(options) {
+          this.scene = options.scene;
+          this.ring = options.ring;
+          this.cards = options.cards;
+          this.counter = options.counter;
+          this.onChange = options.onChange;
+          this.index = 0;
+          this.angle = 360 / this.cards.length;
+          this.dragStartX = null;
+          this.isDragging = false;
+
+          this.bindDrag();
+          this.update(false);
+        }
+
+        bindDrag() {
+          this.scene.addEventListener("pointerdown", (event) => {
+            this.dragStartX = event.clientX;
+            this.isDragging = true;
+            this.scene.setPointerCapture?.(event.pointerId);
+          });
+
+          this.scene.addEventListener("pointerup", (event) => {
+            if (!this.isDragging || this.dragStartX === null) {
+              return;
+            }
+
+            const delta = event.clientX - this.dragStartX;
+            this.isDragging = false;
+            this.dragStartX = null;
+
+            if (Math.abs(delta) > 28) {
+              delta < 0 ? this.next() : this.previous();
+            }
+          });
+
+          this.scene.addEventListener("pointercancel", () => {
+            this.isDragging = false;
+            this.dragStartX = null;
+          });
+        }
+
+        next() {
+          this.goTo(this.index + 1);
+        }
+
+        previous() {
+          this.goTo(this.index - 1);
+        }
+
+        goTo(index, animate = true) {
+          this.index = (index + this.cards.length) % this.cards.length;
+          this.update(animate);
+        }
+
+        update(animate) {
+          gsap.set(this.ring, { rotationY: 0 });
+
+          this.cards.forEach((card, cardIndex) => {
+            let offset = cardIndex - this.index;
+
+            if (offset > this.cards.length / 2) {
+              offset -= this.cards.length;
+            }
+
+            if (offset < -this.cards.length / 2) {
+              offset += this.cards.length;
+            }
+
+            const distance = Math.abs(offset);
+            const isCurrent = offset === 0;
+            const isVisible = distance <= 1;
+            const animation = {
+              "--card-x": String(offset * 74) + "%",
+              "--card-z": isCurrent ? "0rem" : "-5rem",
+              "--card-tilt": String(offset * -17) + "deg",
+              "--card-scale": isCurrent ? "1" : "0.8",
+              opacity: isVisible ? (isCurrent ? 1 : 0.46) : 0,
+              duration: motionDuration(0.64),
+              ease: "power2.out",
+              force3D: true,
+              overwrite: "auto"
+            };
+
+            card.style.zIndex = String(10 - distance);
+            card.classList.toggle("is-current", isCurrent);
+            card.setAttribute("aria-hidden", String(!isCurrent));
+
+            if (animate) {
+              gsap.to(card, animation);
+            } else {
+              gsap.set(card, animation);
+            }
+          });
+
+          this.counter.textContent = String(this.index + 1).padStart(2, "0") + " / " + String(this.cards.length).padStart(2, "0");
+          this.onChange(this.index);
+        }
+      }
+
+      class WordReveal {
+        constructor(container, actions) {
+          this.container = container;
+          this.actions = actions;
+          this.timeline = null;
+        }
+
+        show(message) {
+          if (this.timeline) {
+            this.timeline.kill();
+          }
+
+          this.container.replaceChildren();
+          this.actions.style.opacity = "0";
+          this.actions.style.transform = "translateY(1rem)";
+
+          const fragment = document.createDocumentFragment();
+          const words = message.split(" ");
+
+          words.forEach((word) => {
+            const span = document.createElement("span");
+            span.className = "message-word";
+            span.textContent = word;
+            fragment.appendChild(span);
+          });
+
+          this.container.appendChild(fragment);
+          const wordElements = queryAll(".message-word", this.container);
+
+          this.timeline = gsap.timeline({ delay: motionDuration(0.32) });
+          this.timeline.to(wordElements, {
+            autoAlpha: 1,
+            y: 0,
+            duration: motionDuration(0.45),
+            ease: "power3.out",
+            stagger: motionDuration(0.1)
+          });
+          this.timeline.to(this.actions, {
+            autoAlpha: 1,
+            y: 0,
+            duration: motionDuration(0.52),
+            ease: "back.out(1.6)"
+          }, motionDuration(0.16));
+        }
+
+        reset() {
+          if (this.timeline) {
+            this.timeline.kill();
+          }
+          this.container.replaceChildren();
+          gsap.set(this.actions, { autoAlpha: 0, y: 16 });
+        }
+      }
+
+      class ConfettiField {
+        constructor(canvas) {
+          this.canvas = canvas;
+          this.context = canvas.getContext("2d");
+          this.particles = [];
+          this.running = false;
+          this.frame = 0;
+          this.width = 0;
+          this.height = 0;
+          this.pixelRatio = 1;
+          this.loop = this.loop.bind(this);
+          this.resize = this.resize.bind(this);
+          window.addEventListener("resize", this.resize, { passive: true });
+          this.resize();
+        }
+
+        resize() {
+          this.width = window.innerWidth;
+          this.height = window.innerHeight;
+          this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+          this.canvas.width = Math.round(this.width * this.pixelRatio);
+          this.canvas.height = Math.round(this.height * this.pixelRatio);
+          this.context.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
+        }
+
+        createParticle(initial) {
+          const colors = ["#ff9fbc", "#bda5ff", "#95e9ce", "#ffe49d", "#f7f5ff"];
+          return {
+            x: Math.random() * this.width,
+            y: initial ? -Math.random() * this.height : -24,
+            velocityX: (Math.random() - 0.5) * 1.9,
+            velocityY: 1.45 + Math.random() * 2.8,
+            gravity: 0.018 + Math.random() * 0.025,
+            rotation: Math.random() * Math.PI,
+            rotationSpeed: (Math.random() - 0.5) * 0.16,
+            width: 5 + Math.random() * 8,
+            height: 3 + Math.random() * 5,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            opacity: 0.65 + Math.random() * 0.35
+          };
+        }
+
+        start() {
+          this.stop();
+          const count = prefersReducedMotion ? 55 : 150;
+          this.particles = Array.from({ length: count }, () => this.createParticle(true));
+          this.running = true;
+          this.loop();
+        }
+
+        stop() {
+          this.running = false;
+          cancelAnimationFrame(this.frame);
+          this.context.clearRect(0, 0, this.width, this.height);
+        }
+
+        loop() {
+          if (!this.running) {
+            return;
+          }
+
+          const context = this.context;
+          context.clearRect(0, 0, this.width, this.height);
+
+          this.particles.forEach((particle, index) => {
+            particle.x += particle.velocityX;
+            particle.y += particle.velocityY;
+            particle.velocityY += particle.gravity;
+            particle.rotation += particle.rotationSpeed;
+
+            if (particle.y > this.height + 30 || particle.x < -40 || particle.x > this.width + 40) {
+              this.particles[index] = this.createParticle(false);
+              return;
+            }
+
+            context.save();
+            context.globalAlpha = particle.opacity;
+            context.fillStyle = particle.color;
+            context.translate(particle.x, particle.y);
+            context.rotate(particle.rotation);
+            context.fillRect(-particle.width / 2, -particle.height / 2, particle.width, particle.height);
+            context.restore();
+          });
+
+          this.frame = requestAnimationFrame(this.loop);
+        }
+      }
+
+      class StateMachine {
+        constructor(options) {
+          this.current = null;
+          this.busy = false;
+          this.transitions = options.transitions;
+          this.screens = options.screens;
+          this.onEnter = options.onEnter;
+          this.onExit = options.onExit;
+        }
+
+        canTransition(next) {
+          return this.current === null || this.transitions[this.current].includes(next);
+        }
+
+        async go(next) {
+          if (this.busy || this.current === next || !this.canTransition(next)) {
+            return;
+          }
+
+          const previous = this.current;
+          this.busy = true;
+          await this.onExit(previous, next);
+          await this.swapScreens(previous, next);
+          this.current = next;
+          await this.onEnter(next, previous);
+          this.busy = false;
+        }
+
+        swapScreens(previous, next) {
+          const previousScreen = previous ? this.screens.get(previous) : null;
+          const nextScreen = this.screens.get(next);
+
+          nextScreen.classList.add("is-active");
+          nextScreen.removeAttribute("inert");
+          nextScreen.setAttribute("aria-hidden", "false");
+          gsap.set(nextScreen, { autoAlpha: 0, y: 24 });
+
+          if (previousScreen) {
+            previousScreen.setAttribute("inert", "");
+            previousScreen.setAttribute("aria-hidden", "true");
+            previousScreen.style.pointerEvents = "none";
+          }
+
+          return new Promise((resolve) => {
+            const timeline = gsap.timeline({
+              onComplete: () => {
+                if (previousScreen) {
+                  previousScreen.classList.remove("is-active");
+                  previousScreen.style.pointerEvents = "";
+                  gsap.set(previousScreen, { clearProps: "all" });
+                }
+                gsap.set(nextScreen, { clearProps: "transform,opacity,visibility" });
+                resolve();
+              }
+            });
+
+            if (previousScreen) {
+              timeline.to(previousScreen, {
+                autoAlpha: 0,
+                y: -18,
+                duration: motionDuration(0.42),
+                ease: "power2.in"
+              });
+            }
+
+            timeline.to(nextScreen, {
+              autoAlpha: 1,
+              y: 0,
+              duration: motionDuration(0.7),
+              ease: "power3.out"
+            }, previousScreen ? "-=0.16" : 0);
+          });
+        }
+      }
+
+      const slides = [
+        {
+          title: "Un început care încă luminează.",
+          caption: "O privire, un zâmbet și o poveste care a început să ne aparțină :)",
+          number: "01 — 'Ai și o privire drăgălașă 😉'"
+        },
+        {
+          title: "Cele mai colorate zile, sunt cu tine.",
+          caption: "Cu tine, și lucrurile mici au devenit locuri în care vreau să rămân.",
+          number: "02 — Aș dori doar privirea ta 😊"
+        },
+        {
+          title: "Buzele și ochii care mă lasă fără de cuvinte...",
+          caption: "În fiecare moment spontan, găsesc încă un motiv să te aleg.",
+          number: "03 — Căci doar TU mă faci să zâmbesc sincer..."
+        },
+        {
+          title: "Cât nu aș merge, dar să merg cu tine...",
+          caption: "Nu locul contează cel mai mult, ci mâna ta în mâna mea.",
+          number: "04 — 'Ești drăguță... la felul tău de a fi'"
+        },
+        {
+          title: "Tu faci timpul să fugă neobservat.",
+          caption: "Ai transformat clipe obișnuite în amintiri pe care le port mereu.",
+          number: "05 — Cel mai frumos fel de a fi pe care l-am văzut în viață"
+        },
+        {
+          title: "Și acesta e doar începutul.",
+          caption: "Mai avem atât de multe pagini frumoase de scris, împreună.",
+          number: "06 — continuăm?"
+        }
+      ];
+
+      const audioController = new AudioController(dom.music);
+      ["pointerdown", "touchstart", "keydown"].forEach((eventName) => {
+        document.addEventListener(eventName, () => audioController.start(), { once: true, passive: eventName !== "keydown" });
+      });
+
+      queryAll(".js-hover").forEach(addHoverMotion);
+      gsap.to(".type-cursor", {
+        autoAlpha: 0.22,
+        duration: motionDuration(0.52),
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
+      });
+
+      const typewriter = new Typewriter(dom.typewriter);
+      const wordReveal = new WordReveal(dom.messageWords, dom.proposalActions);
+      const confettiField = new ConfettiField(dom.confettiCanvas);
+      let confettiInterval = 0;
+
+      function burstConfetti() {
+        if (typeof window.confetti !== "function") {
+          return;
+        }
+
+        window.confetti({
+          particleCount: prefersReducedMotion ? 20 : 56,
+          spread: 72,
+          startVelocity: 33,
+          origin: { y: 0.62 },
+          colors: ["#ff9fbc", "#bda5ff", "#95e9ce", "#ffe49d", "#f7f5ff"],
+          disableForReducedMotion: true
+        });
+      }
+
+      function startCelebration() {
+        clearInterval(confettiInterval);
+        confettiField.start();
+        burstConfetti();
+        confettiInterval = window.setInterval(burstConfetti, prefersReducedMotion ? 3200 : 1900);
+      }
+
+      function stopCelebration() {
+        clearInterval(confettiInterval);
+        confettiField.stop();
+      }
+
+      const introCanvas = new IntroCanvas(dom.introCanvas, {
+        onChallengeStart: (stroke, total) => {
+          dom.introStatus.textContent = "Desenează " + stroke.label + ". Urmărește linia luminoasă — 1 din " + String(total) + ".";
+        },
+        onChallengeProgress: (stroke, position, total) => {
+          dom.introStatus.textContent = "Perfect. Continuă cu " + stroke.label + " — " + String(position) + " din " + String(total) + ".";
+        },
+        onComplete: () => {
+          dom.introStatus.textContent = "Ai unit povestea noastră. Acum o putem descoperi.";
+          dom.enterGallery.disabled = false;
+          gsap.fromTo(dom.enterGallery, {
+            autoAlpha: 0,
+            y: 12
+          }, {
+            autoAlpha: 1,
+            y: 0,
+            duration: motionDuration(0.56),
+            ease: "back.out(1.65)"
+          });
+        }
+      });
+
+      dom.cards.forEach((card) => {
+        const image = query("img", card);
+        card.style.setProperty("--card-image", "url('" + image.getAttribute("src") + "')");
+      });
+
+      const carousel = new Carousel({
+        scene: dom.carouselScene,
+        ring: dom.carouselRing,
+        cards: dom.cards,
+        counter: dom.slideCounter,
+        onChange: (index) => {
+          const slide = slides[index];
+          dom.copyNumber.textContent = slide.number;
+          dom.galleryCaption.textContent = slide.caption;
+          typewriter.set(slide.title);
+        }
+      });
+
+      const screens = new Map(dom.screens.map((screen) => [screen.dataset.screen, screen]));
+      const machine = new StateMachine({
+        screens,
+        transitions: {
+          initial: ["gallery"],
+          gallery: ["message"],
+          message: ["celebration"],
+          celebration: ["initial"]
+        },
+        onExit: async (current) => {
+          if (current === "initial") {
+            introCanvas.stop();
+          }
+
+          if (current === "gallery") {
+            typewriter.stop();
+          }
+
+          if (current === "celebration") {
+            stopCelebration();
+          }
+        },
+        onEnter: async (state) => {
+          if (state === "initial") {
+            wordReveal.reset();
+            dom.introStatus.textContent = "Se conturează ceva frumos...";
+            dom.enterGallery.disabled = true;
+            gsap.set(dom.enterGallery, { autoAlpha: 0, y: 12 });
+            introCanvas.play();
+          }
+
+          if (state === "gallery") {
+            carousel.goTo(0, false);
+            gsap.fromTo(".gallery-intro, .gallery-copy, .gallery-scene-wrap", {
+              autoAlpha: 0,
+              y: 18
+            }, {
+              autoAlpha: 1,
+              y: 0,
+              duration: motionDuration(0.64),
+              stagger: motionDuration(0.1),
+              ease: "power3.out",
+              clearProps: "transform,opacity,visibility"
+            });
+          }
+
+          if (state === "message") {
+            wordReveal.show("Vrei să continuăm să transformăm fiecare zi obișnuită într-o amintire extraordinară, împreună?");
+          }
+
+          if (state === "celebration") {
+            startCelebration();
+            gsap.fromTo(".celebration-card > *", {
+              autoAlpha: 0,
+              y: 20
+            }, {
+              autoAlpha: 1,
+              y: 0,
+              duration: motionDuration(0.62),
+              stagger: motionDuration(0.11),
+              ease: "power3.out",
+              clearProps: "transform,opacity,visibility"
+            });
+          }
+        }
+      });
+
+      bindPress(dom.enterGallery, () => {
+        if (!dom.enterGallery.disabled) {
+          machine.go("gallery");
+        }
+      });
+      bindPress(dom.previousSlide, () => carousel.previous());
+      bindPress(dom.nextSlide, () => carousel.next());
+      bindPress(dom.toMessage, () => machine.go("message"));
+      bindPress(dom.yesButton, () => machine.go("celebration"));
+      bindPress(dom.replayButton, () => machine.go("initial"));
+
+      machine.go("initial");
+      window.VGExperience = { machine, carousel };
+    })();
+  </script>
+</body>
+</html>
