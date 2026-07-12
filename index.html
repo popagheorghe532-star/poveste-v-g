@@ -871,11 +871,11 @@
     <section class="screen message-screen" data-screen="message" aria-label="Mesaj" aria-hidden="true" inert>
       <article class="message-card">
         <p class="eyebrow">capitolul doi</p>
-        <h2 class="display-title">O întrebare simplă.</h2>
+        <h2 class="display-title">Victoriaaa</h2>
         <p id="message-words" aria-live="polite"></p>
         <div id="proposal-actions" class="proposal-actions">
-          <button id="yes-button" class="button-primary yes-button js-hover" type="button">Da, din toată inima</button>
-          <p class="proposal-note">Promit să aleg mereu „noi”.</p>
+          <button id="yes-button" class="button-primary yes-button js-hover" type="button">Bine</button>
+          <p class="proposal-note"></p>
         </div>
       </article>
     </section>
@@ -1094,12 +1094,12 @@
   }
 
   const slides = [
-    { title: "Un început care încă luminează.", caption: "O privire, un zâmbet și o poveste care a început să ne aparțină :)", number: "01 — 'Ai și o privire drăgălașă 😉'" },
+    { title: "Un început care încă luminează.", caption: "O privire, un zâmbet și o poveste care aș vrea să ne aparțină :)", number: "01 — 'Ai și o privire drăgălașă 😉'" },
     { title: "Cele mai colorate zile, sunt cu tine.", caption: "Cu tine, și lucrurile mici au devenit locuri în care vreau să rămân.", number: "02 — Aș dori doar privirea ta 😊" },
     { title: "Buzele și ochii care mă lasă fără de cuvinte...", caption: "În fiecare moment spontan, găsesc încă un motiv să te aleg.", number: "03 — Căci doar TU mă faci să zâmbesc sincer..." },
     { title: "Cât nu aș merge, dar să merg cu tine...", caption: "Nu locul contează cel mai mult, ci mâna ta în mâna mea.", number: "04 — 'Ești drăguță... la felul tău de a fi'" },
     { title: "Tu faci timpul să fugă neobservat.", caption: "Ai transformat clipe obișnuite în amintiri pe care le port mereu.", number: "05 — Cel mai frumos fel de a fi pe care l-am văzut în viață" },
-    { title: "Și acesta e doar începutul.", caption: "Mai avem atât de multe pagini frumoase de scris, împreună.", number: "06 — continuăm?" }
+    { title: "Și acesta e doar începutul.", caption: "Mai avem atât de multe pagini frumoase de scris...", number: "06 — continuăm?" }
   ];
 
   queryAll(".js-hover").forEach(addHoverMotion);
@@ -1132,7 +1132,7 @@
     onEnter: async (state) => {
       if (state === "initial") { wordReveal.reset(); dom.introStatus.textContent = "Se conturează ceva frumos..."; dom.enterGallery.disabled = true; gsap.set(dom.enterGallery, { autoAlpha: 0, y: 12 }); introCanvas.play(); }
       if (state === "gallery") { carousel.goTo(0, false); gsap.fromTo(".gallery-intro, .gallery-copy, .gallery-scene-wrap", { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, duration: motionDuration(0.64), stagger: motionDuration(0.1), ease: "power3.out", clearProps: "transform,opacity,visibility" }); }
-      if (state === "message") wordReveal.show("Vrei să continuăm să transformăm fiecare zi obișnuită într-o amintire extraordinară, împreună?");
+      if (state === "message") wordReveal.show("Uită-te în dreapta :)");
       if (state === "celebration") { startCelebration(); gsap.fromTo(".celebration-card > *", { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, duration: motionDuration(0.62), stagger: motionDuration(0.11), ease: "power3.out", clearProps: "transform,opacity,visibility" }); }
     }
   });
